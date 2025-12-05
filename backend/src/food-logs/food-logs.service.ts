@@ -1,0 +1,287 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { SupabaseService } from '../supabase';
+import { CreateFoodLogDto, LogFoodInputDto, UpdateFoodLogDto } from './dto';
+
+@Injectable()
+export class FoodLogsService {
+  constructor(private supabaseService: SupabaseService) {}
+
+  private get supabase() {
+    return this.supabaseService.getClient();
+  }
+
+  async create(createDto: CreateFoodLogDto) {
+    // Verify user exists
+    const { data: user, error: userError } = await this.supabase
+      .from('users')
+      .select('id')
+      .eq('id', createDto.userId)
+      .single();
+
+    if (userError || !user) {
+      throw new NotFoundException(`User with ID ${createDto.userId} not found`);
+    }
+
+    const { data, error } = await this.supabase
+      .from('user_food_logs')
+      .insert({
+        user_id: createDto.userId,
+        text: createDto.text,
+        normalized_text: createDto.normalizedText,
+        nutrients: createDto.nutrients,
+        food_item_id: createDto.foodItemId,
+        rule_id: createDto.ruleId,
+      })
+      .select(
+        `
+        *,
+        users(*),
+        food_items(*, food_nutrients(*)),
+        nutrition_rules(*)
+      `,
+      )
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async logFood(input: LogFoodInputDto) {
+    // Verify user exists
+    const { data: user, error: userError } = await this.supabase
+      .from('users')
+      .select('id')
+      .eq('id', input.userId)
+      .single();
+
+    if (userError || !user) {
+      throw new NotFoundException(`User with ID ${input.userId} not found`);
+    }
+
+    // Here you would integrate with AI service to:
+    // 1. Normalize the text
+    // 2. Extract nutrients
+    // 3. Generate embeddings
+    // 4. Match with existing food items
+    // 5. Check nutrition rules
+
+    // For now, create a basic log entry
+    const { data, error } = await this.supabase
+      .from('user_food_logs')
+      .insert({
+        user_id: input.userId,
+        text: input.text,
+        normalized_text: input.text.toLowerCase().trim(),
+      })
+      .select(
+        `
+        *,
+        users(*),
+        food_items(*, food_nutrients(*)),
+        nutrition_rules(*)
+      `,
+      )
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async findAll(options?: {
+    userId?: string;
+    startDate?: Date;
+    endDate?: Date;
+  }) {
+    let query = this.supabase
+      .from('user_food_logs')
+      .select(
+        `
+        *,
+        users(*),
+        food_items(*, food_nutrients(*)),
+        nutrition_rules(*)
+      `,
+      )
+      .order('created_at', { ascending: false });
+
+    if (options?.userId) {
+      query = query.eq('user_id', options.userId);
+    }
+
+    if (options?.startDate) {
+      query = query.gte('created_at', options.startDate.toISOString());
+    }
+
+    if (options?.endDate) {
+      query = query.lte('created_at', options.endDate.toISOString());
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return data;
+  }
+
+  async findByUser(userId: string, limit = 50) {
+    const { data, error } = await this.supabase
+      .from('user_food_logs')
+      .select(
+        `
+        *,
+        food_items(*, food_nutrients(*)),
+        nutrition_rules(*)
+      `,
+      )
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data;
+  }
+
+  async findOne(id: string) {
+    const { data: log, error } = await this.supabase
+      .from('user_food_logs')
+      .select(
+        `
+        *,
+        users(*),
+        food_items(*, food_nutrients(*), food_categories(*)),
+        nutrition_rules(*)
+      `,
+      )
+      .eq('id', id)
+      .single();
+
+    if (error || !log) {
+      throw new NotFoundException(`Food log with ID ${id} not found`);
+    }
+
+    return log;
+  }
+
+  async update(id: string, updateDto: UpdateFoodLogDto) {
+    await this.findOne(id);
+
+    const updateData: Record<string, unknown> = {};
+    if (updateDto.text !== undefined) updateData.text = updateDto.text;
+    if (updateDto.normalizedText !== undefined)
+      updateData.normalized_text = updateDto.normalizedText;
+    if (updateDto.nutrients !== undefined)
+      updateData.nutrients = updateDto.nutrients;
+    if (updateDto.foodItemId !== undefined)
+      updateData.food_item_id = updateDto.foodItemId;
+    if (updateDto.ruleId !== undefined) updateData.rule_id = updateDto.ruleId;
+
+    const { data, error } = await this.supabase
+      .from('user_food_logs')
+      .update(updateData)
+      .eq('id', id)
+      .select(
+        `
+        *,
+        users(*),
+        food_items(*, food_nutrients(*)),
+        nutrition_rules(*)
+      `,
+      )
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async remove(id: string) {
+    await this.findOne(id);
+
+    const { data, error } = await this.supabase
+      .from('user_food_logs')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async getDailySummary(userId: string, date: Date) {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const { data: logs, error } = await this.supabase
+      .from('user_food_logs')
+      .select('*, food_items(*, food_nutrients(*))')
+      .eq('user_id', userId)
+      .gte('created_at', startOfDay.toISOString())
+      .lte('created_at', endOfDay.toISOString());
+
+    if (error) throw error;
+
+    // Calculate totals from nutrients
+    const totals = {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      sugar: 0,
+      sodium: 0,
+      fiber: 0,
+      cholesterol: 0,
+    };
+
+    for (const log of logs || []) {
+      if (log.nutrients && typeof log.nutrients === 'object') {
+        const nutrients = log.nutrients as Record<string, number>;
+        for (const key of Object.keys(totals)) {
+          if (nutrients[key]) {
+            totals[key as keyof typeof totals] += Number(nutrients[key]) || 0;
+          }
+        }
+      }
+    }
+
+    return {
+      date,
+      logsCount: logs?.length || 0,
+      logs,
+      totals,
+    };
+  }
+
+  async getWeeklySummary(userId: string, endDate: Date = new Date()) {
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 7);
+
+    const { data: logs, error } = await this.supabase
+      .from('user_food_logs')
+      .select('*, food_items(*, food_nutrients(*))')
+      .eq('user_id', userId)
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    // Group by day
+    const dailyData: Record<string, (typeof logs)[number][]> = {};
+    for (const log of logs || []) {
+      const dateKey = new Date(log.created_at).toISOString().split('T')[0];
+      if (!dailyData[dateKey]) {
+        dailyData[dateKey] = [];
+      }
+      dailyData[dateKey].push(log);
+    }
+
+    return {
+      startDate,
+      endDate,
+      totalLogs: logs?.length || 0,
+      dailyData,
+    };
+  }
+}
