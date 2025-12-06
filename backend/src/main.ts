@@ -1,5 +1,6 @@
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -44,38 +45,61 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   logger.log('Global API prefix set to: /api');
 
+  // Swagger API Documentation
+  const config = new DocumentBuilder()
+    .setTitle('NutriMori API')
+    .setDescription('NutriMori Backend API Documentation - Nutrition Tracking & AI-Powered Food Logging')
+    .setVersion('1.0')
+    .addTag('auth', 'Authentication endpoints')
+    .addTag('users', 'User management')
+    .addTag('user-preferences', 'User preferences and dietary settings')
+    .addTag('food-items', 'Food items and nutritional data')
+    .addTag('food-logs', 'Food logging and tracking')
+    .addTag('nutrition-rules', 'Nutrition rules and recommendations')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .addServer('http://localhost:3001', 'Local Development')
+    .addServer('https://nutrimori.vercel.app/', 'Production')
+    .build();
+
+  const document = SwaggerModule.createDocument(app as any, config);
+  SwaggerModule.setup('api/docs', app as any, document, {
+    customSiteTitle: 'NutriMori API Documentation',
+    customfavIcon: 'https://nestjs.com/img/logo-small.svg',
+    customCss: '.swagger-ui .topbar { display: none }',
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'none',
+      filter: true,
+      showRequestDuration: true,
+    },
+  });
+
+  logger.log('📚 Swagger documentation available at: /api/docs');
+
   // Get port
   const port = process.env.PORT ?? 3001;
   
   // Start listening
   await app.listen(port);
   
-  // Log successful startup
-  logger.log('✅ Application successfully started');
-  logger.log(`🌐 Server running on: http://localhost:${port}`);
-  logger.log(`📁 API Base URL: http://localhost:${port}/api`);
-  logger.log(`🏥 Health Check: http://localhost:${port}/api/health`);
-  logger.log(`🔍 Detailed Health: http://localhost:${port}/api/health/detailed`);
   logger.log('========================================');
-  
-  // Log memory usage
-  const memoryUsage = process.memoryUsage();
-  logger.debug(`Memory Usage - RSS: ${Math.round(memoryUsage.rss / 1024 / 1024)}MB, Heap: ${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB/${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`);
+  logger.log(`✅ Application is running on: http://localhost:${port}`);
+  logger.log(`📖 API Documentation: http://localhost:${port}/api/docs`);
+  logger.log(`🔗 API Base URL: http://localhost:${port}/api`);
+  logger.log('========================================');
 }
 
-// Handle uncaught errors
-process.on('uncaughtException', (error) => {
-  const logger = new Logger('UncaughtException');
-  logger.error('Uncaught Exception:', error.stack || error.message);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  const logger = new Logger('UnhandledRejection');
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
 bootstrap().catch((error) => {
-  const logger = new Logger('BootstrapError');
-  logger.error('Failed to bootstrap application:', error.stack || error.message);
+  console.error('❌ Application failed to start:', error);
   process.exit(1);
 });
