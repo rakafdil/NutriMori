@@ -220,10 +220,11 @@ const DashboardContent: React.FC = () => {
           setMealInput={setMealInput}
           isAnalyzing={isAnalyzing}
           analyzedData={analyzedData}
+          setAnalyzedData={setAnalyzedData}
           onAnalyze={handleAnalyze}
           onSave={handleSaveMeal}
-          onClose={handleCloseModal}
-          onReset={() => setAnalyzedData(null)}
+          onClose={() => setShowAddModal(false)}
+          onReset={handleCloseModal}
         />
       )}
     </div>

@@ -12,44 +12,38 @@ export const analyzeMealDescription = async (
   try {
     const response = await ai.models.generateContent({
       model: MEAL_ANALYSIS_MODEL,
-      contents: `Analyze this meal description: "${description}". Estimate nutritional values.`,
+      contents: `
+    Extract ingredient list from the meal description below.
+
+    Description: "${description}"
+
+    Respond ONLY with JSON:
+    {
+      "items": [
+        { "name": "tahu", "quantity": 1, "unit": "porsi" },
+        { "name": "tempe", "quantity": 3, "unit": "potong" }
+      ]
+    }
+  `,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            calories: {
-              type: Type.NUMBER,
-              description: "Estimated calories in kcal",
-            },
-            protein: { type: Type.NUMBER, description: "Protein in grams" },
-            carbs: { type: Type.NUMBER, description: "Carbohydrates in grams" },
-            fats: { type: Type.NUMBER, description: "Fats in grams" },
-            sodium: {
-              type: Type.STRING,
-              enum: ["Low", "Moderate", "High"],
-              description: "Sodium level assessment",
-            },
-            healthScore: {
-              type: Type.STRING,
-              enum: ["Green", "Yellow", "Red"],
-              description:
-                "Overall health rating (Green=Healthy, Red=Unhealthy)",
-            },
-            summary: {
-              type: Type.STRING,
-              description: "A short, friendly 1-sentence summary of the meal.",
+            items: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  quantity: { type: Type.NUMBER },
+                  unit: { type: Type.STRING },
+                },
+                required: ["name", "quantity"],
+              },
             },
           },
-          required: [
-            "calories",
-            "protein",
-            "carbs",
-            "fats",
-            "sodium",
-            "healthScore",
-            "summary",
-          ],
+          required: ["items"],
         },
       },
     });
