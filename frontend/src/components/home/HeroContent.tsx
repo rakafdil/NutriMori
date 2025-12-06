@@ -2,12 +2,13 @@
 import React from "react";
 import Link from "next/link";
 import { ArrowRight, Activity, PlayCircle } from "lucide-react";
+import Image from "next/image";
 
 const HeroContent: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-white dark:bg-gray-950 flex flex-col relative overflow-hidden font-sans transition-colors duration-500">
       {/* Soft Gradient Background */}
-      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-emerald-50 via-white to-lime-50 dark:from-gray-900 dark:via-gray-900 dark:to-emerald-950/20 -z-10 transition-colors duration-500" />
+      <div className="absolute top-0 left-0 w-full h-full bg-linear-to-br from-emerald-50 via-white to-lime-50 dark:from-gray-900 dark:via-gray-900 dark:to-emerald-950/20 -z-10 transition-colors duration-500" />
       <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-lime-200/30 dark:bg-lime-900/10 rounded-full blur-3xl" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-emerald-200/20 dark:bg-emerald-900/10 rounded-full blur-3xl" />
 
@@ -36,9 +37,59 @@ const HeroContent: React.FC = () => {
         </Link>
       </nav>
 
+      <div className="absolute h-full w-full z-0 opacity-80 mt-30">
+        <div className="flex justify-between px-4 sm:px-10 md:px-20 lg:px-40 mb-10 md:mb-20">
+          <Image
+            src={"/hero/up-left.png"}
+            width={200}
+            height={200}
+            alt="food"
+            className="animate-spin-slow w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48"
+          />
+          <Image
+            src={"/hero/up-right.png"}
+            width={200}
+            height={200}
+            alt="food"
+            className="animate-spin-slow w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48"
+          />
+        </div>
+        <div className="flex justify-between px-2 sm:px-6 md:px-12 lg:px-20 mb-10 md:mb-20">
+          <Image
+            src={"/hero/mid-left.png"}
+            width={150}
+            height={150}
+            alt="food"
+            className="animate-spin-slower w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-28 lg:h-28 xl:w-36 xl:h-36"
+          />
+          <Image
+            src={"/hero/mid-right.png"}
+            width={150}
+            height={150}
+            alt="food"
+            className="animate-spin-slower w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-28 lg:h-28 xl:w-36 xl:h-36"
+          />
+        </div>
+        <div className="flex justify-between px-4 sm:px-10 md:px-20 lg:px-40">
+          <Image
+            src={"/hero/bot-left.png"}
+            width={200}
+            height={200}
+            alt="food"
+            className="animate-spin-slow w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48"
+          />
+          <Image
+            src={"/hero/bot-right.png"}
+            width={200}
+            height={200}
+            alt="food"
+            className="animate-spin-slow w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48"
+          />
+        </div>
+      </div>
       {/* Main Content */}
-      <main className="flex-1 flex flex-col justify-center items-center text-center px-4 md:px-6 max-w-4xl mx-auto mt-10 md:mt-0">
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white leading-[1.1] mb-6">
+      <main className="relative flex-1 flex flex-col justify-center items-center text-center px-4 md:px-6 max-w-4xl mx-auto mt-10 md:mt-40">
+        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white leading-[1.1] mb-6 z-20">
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-700 to-lime-600 dark:from-emerald-400 dark:to-lime-400">
             Kenali tubuhmu.
           </span>
@@ -55,7 +106,7 @@ const HeroContent: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
           <Link
-            href="/onboarding"
+            href="/auth"
             className="group flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all transform hover:scale-105 shadow-xl shadow-emerald-200 dark:shadow-emerald-900/20"
           >
             Start Tracking

@@ -3,21 +3,30 @@ export interface UserProfile {
   preferences: string[];
   allergies: string[];
   goals: string[];
+  medicalHistory: string[];
   routine: {
-    breakfast: string;
-    lunch: string;
-    dinner: string;
+    breakfast?: string;
+    lunch?: string;
+    dinner?: string;
   };
+  budget?: number;
+}
+
+export interface FoodItem {
+  name: string;
+  quantity: number;
+  unit?: string;
 }
 
 export interface NutritionInfo {
-  calories: number;
-  protein: number;
-  carbs: number;
-  fats: number;
-  sodium: string;
-  healthScore: "Green" | "Yellow" | "Red";
-  summary: string;
+  items: FoodItem[];
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fats?: number;
+  sodium?: string;
+  healthScore?: string;
+  summary?: string;
 }
 
 export interface Meal {
