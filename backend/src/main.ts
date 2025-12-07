@@ -22,7 +22,7 @@ async function bootstrap() {
   // Enable CORS
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   app.enableCors({
-    origin: frontendUrl,
+    origin: [frontendUrl, 'http://localhost:3000', 'https://nutri-mori.vercel.app'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -90,7 +90,7 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3001;
   
   // Start listening
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0'); // Listen on all interfaces untuk deployment
   
   logger.log('========================================');
   logger.log(`✅ Application is running on: http://localhost:${port}`);
