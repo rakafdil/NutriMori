@@ -7,9 +7,12 @@ interface NutritionBreakdownProps {
 }
 
 const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
-  const totalProtein = meals.reduce((a, b) => a + b.nutrition.protein, 0);
-  const totalCarbs = meals.reduce((a, b) => a + b.nutrition.carbs, 0);
-  const totalFats = meals.reduce((a, b) => a + b.nutrition.fats, 0);
+  const totalProtein = meals.reduce(
+    (a, b) => a + (b.nutrition?.protein ?? 0),
+    0
+  );
+  const totalCarbs = meals.reduce((a, b) => a + (b.nutrition?.carbs ?? 0), 0);
+  const totalFats = meals.reduce((a, b) => a + (b.nutrition?.fats ?? 0), 0);
 
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 h-full transition-colors">

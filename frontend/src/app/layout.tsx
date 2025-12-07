@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "NutriMori - AI Nutrition Tracker",
   description: "Track your nutrition with AI-powered insights",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
