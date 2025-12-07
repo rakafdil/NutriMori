@@ -56,6 +56,7 @@ export const analyzeMealDescription = async (
     console.error("Error analyzing meal:", error);
     // Fallback if AI fails
     return {
+      items: [],
       calories: 0,
       protein: 0,
       carbs: 0,

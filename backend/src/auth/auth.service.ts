@@ -1,22 +1,14 @@
 import {
-    BadRequestException,
-    ConflictException,
-    Injectable,
-    UnauthorizedException,
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcryptjs';
 import { SupabaseService } from '../supabase';
 import { AuthResponseDto, LoginDto, RegisterDto } from './dto';
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private supabaseService: SupabaseService,
-    private jwtService: JwtService,
-    private configService: ConfigService,
-  ) {}
+  constructor(private supabaseService: SupabaseService) {}
 
   private get supabase() {
     return this.supabaseService.getClient();
@@ -25,53 +17,47 @@ export class AuthService {
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
     const { email, password, name } = registerDto;
 
-    // Check if user already exists
-    const { data: existingUser } = await this.supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const { data: user, error } = await this.supabase
-      .from('users')
-      .insert({
-        email,
-        name,
-        password_hash: hashedPassword,
-      })
-      .select('id, email, name')
-      .single();
+    const { data, error } = await this.supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name },
+      },
+    });
 
     if (error) {
-      throw new BadRequestException('Failed to create user');
+      throw new BadRequestException(error.message);
     }
 
-    // Generate JWT token
-    const access_token = this.jwtService.sign(
-      {
-        email: user.email,
-        sub: user.id,
-      },
-      {
-        secret: this.configService.get<string>('JWT_SECRET'),
-        expiresIn: this.configService.get<string>('JWT_EXPIRATION'),
-      },
-    );
+    if (!data?.user) {
+      throw new BadRequestException('Registration failed');
+    }
+
+    // Handle email confirmation requirement
+    if (!data.session) {
+      return {
+        message: 'Please check your email to confirm your account',
+        user: {
+          id: data.user.id,
+          email: data.user.email ?? '',
+          name:
+            typeof data.user.user_metadata?.name === 'string'
+              ? data.user.user_metadata.name
+              : (name ?? ''),
+        },
+      };
+    }
 
     return {
-      access_token,
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
+        id: data.user.id,
+        email: data.user.email ?? '',
+        name:
+          typeof data.user.user_metadata?.name === 'string'
+            ? data.user.user_metadata.name
+            : (name ?? ''),
       },
     };
   }
@@ -79,92 +65,172 @@ export class AuthService {
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
     const { email, password } = loginDto;
 
-    // Find user by email
-    const { data: user, error } = await this.supabase
-      .from('users')
-      .select('id, email, name, password_hash')
-      .eq('email', email)
-      .single();
+    const { data, error } = await this.supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    if (error || !user) {
-      throw new UnauthorizedException('Invalid email or password');
+    if (error) {
+      throw new UnauthorizedException(error.message);
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
+    if (!data?.user || !data.session) {
+      throw new UnauthorizedException('Login failed');
     }
-
-    // Generate JWT token
-    const access_token = this.jwtService.sign(
-      {
-        email: user.email,
-        sub: user.id,
-      },
-      {
-        secret: this.configService.get<string>('JWT_SECRET'),
-        expiresIn: this.configService.get<string>('JWT_EXPIRATION'),
-      },
-    );
 
     return {
-      access_token,
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
+        id: data.user.id,
+        email: data.user.email ?? '',
+        name:
+          typeof data.user.user_metadata?.name === 'string'
+            ? data.user.user_metadata.name
+            : '',
       },
     };
   }
 
-  async validateUser(id: string) {
-    const { data: user, error } = await this.supabase
-      .from('users')
-      .select('id, email, name')
-      .eq('id', id)
-      .single();
+  async validateUser(accessToken: string) {
+    const { data, error } = await this.supabase.auth.getUser(accessToken);
 
-    if (error || !user) {
-      throw new UnauthorizedException('User not found');
+    if (error || !data?.user) {
+      throw new UnauthorizedException(error?.message || 'Invalid token');
     }
 
-    return user;
+    return {
+      id: data.user.id,
+      email: data.user.email ?? '',
+      name:
+        typeof data.user.user_metadata?.name === 'string'
+          ? data.user.user_metadata.name
+          : '',
+    };
   }
 
-  async changePassword(userId: string, oldPassword: string, newPassword: string) {
-    // Get user with password hash
-    const { data: user, error } = await this.supabase
-      .from('users')
-      .select('password_hash')
-      .eq('id', userId)
-      .single();
+  async refreshToken(refreshToken: string) {
+    const { data, error } = await this.supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
 
-    if (error || !user) {
-      throw new UnauthorizedException('User not found');
+    if (error || !data?.session) {
+      throw new UnauthorizedException(
+        error?.message || 'Invalid refresh token',
+      );
     }
 
-    // Verify old password
-    const isPasswordValid = await bcrypt.compare(oldPassword, user.password_hash);
+    return {
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    };
+  }
 
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+  async logout(accessToken: string) {
+    // Set the session before logging out
+    await this.supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: '', // Required by type, ignored by Supabase
+    });
+
+    const { error } = await this.supabase.auth.signOut();
+
+    if (error) {
+      throw new BadRequestException(error.message);
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    return { message: 'Logged out successfully' };
+  }
 
-    // Update password
-    const { error: updateError } = await this.supabase
-      .from('users')
-      .update({ password_hash: hashedPassword })
-      .eq('id', userId);
+  async changePassword(accessToken: string, newPassword: string) {
+    // Set the session to update the password for the authenticated user
+    const { error: sessionError } = await this.supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: '', // Required by type, ignored by Supabase
+    });
 
-    if (updateError) {
+    if (sessionError) {
+      throw new UnauthorizedException(sessionError.message);
+    }
+
+    const { data, error } = await this.supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    if (!data?.user) {
       throw new BadRequestException('Failed to update password');
     }
 
     return { message: 'Password updated successfully' };
+  }
+
+  async resetPasswordRequest(email: string) {
+    const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.FRONTEND_URL}/auth/reset-password`,
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    return { message: 'Password reset email sent' };
+  }
+
+  async resetPassword(accessToken: string, newPassword: string) {
+    // Set the session using the token from the reset email
+    const { error: sessionError } = await this.supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: '', // Required by type, ignored by Supabase
+    });
+
+    if (sessionError) {
+      throw new UnauthorizedException(sessionError.message);
+    }
+
+    const { data, error } = await this.supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    if (!data?.user) {
+      throw new BadRequestException('Failed to reset password');
+    }
+
+    return { message: 'Password reset successfully' };
+  }
+
+  async verifyEmail(token: string) {
+    const { data, error } = await this.supabase.auth.verifyOtp({
+      token_hash: token,
+      type: 'email',
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    if (!data?.user || !data.session) {
+      throw new BadRequestException('Email verification failed');
+    }
+
+    return {
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email ?? '',
+        name:
+          typeof data.user.user_metadata?.name === 'string'
+            ? data.user.user_metadata.name
+            : '',
+      },
+    };
   }
 }

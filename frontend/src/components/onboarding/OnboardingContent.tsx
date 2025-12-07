@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { UserProfile } from "@/types";
 import { useUser } from "@/context";
@@ -20,7 +20,10 @@ const OnboardingContent: React.FC = () => {
   const { setUser } = useUser();
   const [step, setStep] = useState(1);
   const [profile, setProfile] = useState<UserProfile>({
-    name: "Raka",
+    username: "",
+    age: undefined,
+    height: undefined,
+    weight: undefined,
     preferences: [],
     allergies: [],
     goals: [],
@@ -28,6 +31,22 @@ const OnboardingContent: React.FC = () => {
     routine: { breakfast: "07:00", lunch: "12:00", dinner: "19:00" },
     budget: 50000,
   });
+
+  // Load user data from localStorage on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem("nutrimori_user");
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        setProfile((prev) => ({
+          ...prev,
+          username: userData.name || "",
+        }));
+      } catch (error) {
+        console.error("Failed to parse user data:", error);
+      }
+    }
+  }, []);
 
   const toggleSelection = (key: keyof UserProfile, value: string) => {
     setProfile((prev) => {
@@ -61,13 +80,14 @@ const OnboardingContent: React.FC = () => {
           <Step1Preferences
             profile={profile}
             toggleSelection={toggleSelection}
+            setProfile={setProfile}
           />
         );
       case 2:
         return <Step2Routine profile={profile} setProfile={setProfile} />;
       case 3:
         console.log(profile);
-        return <Step3Summary />;
+        return <Step3Summary profile={profile} />;
       default:
         return null;
     }

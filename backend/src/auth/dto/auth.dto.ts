@@ -1,5 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, IsStrongPassword } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsStrongPassword,
+} from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty({
@@ -11,7 +16,8 @@ export class RegisterDto {
   email: string;
 
   @ApiProperty({
-    description: 'User password (min 8 chars, must contain uppercase, lowercase, number, and symbol)',
+    description:
+      'User password (min 8 chars, must contain uppercase, lowercase, number, and symbol)',
     example: 'MyP@ssw0rd',
     minLength: 8,
   })
@@ -58,7 +64,8 @@ export class ChangePasswordDto {
   oldPassword: string;
 
   @ApiProperty({
-    description: 'New password (min 8 chars, must contain uppercase, lowercase, number, and symbol)',
+    description:
+      'New password (min 8 chars, must contain uppercase, lowercase, number, and symbol)',
     example: 'NewP@ssw0rd',
     minLength: 8,
   })
@@ -73,11 +80,11 @@ export class ChangePasswordDto {
 }
 
 export class AuthResponseDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'JWT access token',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
   })
-  access_token: string;
+  access_token?: string;
 
   @ApiPropertyOptional({
     description: 'Refresh token (if implemented)',
@@ -91,14 +98,20 @@ export class AuthResponseDto {
     properties: {
       id: { type: 'string', format: 'uuid' },
       email: { type: 'string', format: 'email' },
-      name: { type: 'string', nullable: true },
+      name: { type: 'string' },
     },
   })
   user: {
     id: string;
     email: string;
-    name: string | null;
+    name: string;
   };
+
+  @ApiPropertyOptional({
+    description: 'Additional message (optional)',
+    example: 'Please check your email to confirm your account',
+  })
+  message?: string;
 }
 
 export class JwtPayloadDto {

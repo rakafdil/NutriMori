@@ -29,7 +29,7 @@ const DashboardContent: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [analyzedData, setAnalyzedData] = useState<NutritionInfo | null>(null);
 
-  const totalCals = meals.reduce((acc, m) => acc + m.nutrition.calories, 0);
+  const totalCals = meals.reduce((acc, m) => acc + (m.nutrition.calories ?? 0), 0);
   const totalSodium = meals.filter((m) => m.nutrition.sodium === "High").length;
 
   useEffect(() => {

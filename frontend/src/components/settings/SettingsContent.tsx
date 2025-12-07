@@ -1,15 +1,18 @@
 "use client";
-import React from "react";
-import { Moon, Sun, Bell, Shield, LogOut } from "lucide-react";
+import React, { useState } from "react";
+import { Moon, Sun, Bell, Shield, LogOut, Loader2 } from "lucide-react";
 import { useUser, useTheme } from "@/context";
+import { authService } from "@/services/auth.service";
 
 const SettingsContent: React.FC = () => {
   const { user, setUser } = useUser();
   const { theme, toggleTheme } = useTheme();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = () => {
+    setIsLoggingOut(true);
     setUser(null);
-    window.location.href = "/";
+    authService.logout();
   };
 
   return (
@@ -20,7 +23,7 @@ const SettingsContent: React.FC = () => {
 
       <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 transition-colors">
         <div className="flex items-center gap-4 mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-lime-400 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+          <div className="w-16 h-16 bg-linear-to-br from-emerald-400 to-lime-400 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg">
             {user?.name?.[0] || "U"}
           </div>
           <div>
@@ -101,15 +104,24 @@ const SettingsContent: React.FC = () => {
         <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 text-red-500 hover:text-red-600 text-sm font-semibold transition-colors"
+            disabled={isLoggingOut}
+            className="flex items-center gap-2 text-red-500 hover:text-red-600 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <LogOut className="w-4 h-4" /> Sign Out
+            {isLoggingOut ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Signing Out...
+              </>
+            ) : (
+              <>
+                <LogOut className="w-4 h-4" /> Sign Out
+              </>
+            )}
           </button>
         </div>
       </div>
 
       <div className="text-center text-sm text-gray-400 dark:text-gray-600 mt-12">
-        NutriFlow AI v1.0.0
+        NutriMori AI v1.0.0
       </div>
     </div>
   );

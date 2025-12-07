@@ -1,5 +1,9 @@
 export interface UserProfile {
-  name: string;
+  name?: string;
+  username: string;
+  age?: number;
+  height?: number;
+  weight?: number;
   preferences: string[];
   allergies: string[];
   goals: string[];
@@ -41,4 +45,30 @@ export interface ChatMessage {
   role: "user" | "model";
   text: string;
   isStreaming?: boolean;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+    };
+    access_token: string;
+    refresh_token: string;
+  };
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface SignupCredentials {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
 }

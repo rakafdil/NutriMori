@@ -1,15 +1,17 @@
 import React, { useState } from "react";
-import { Activity, Plus, AlertCircle, Utensils } from "lucide-react";
+import { Activity, Plus, AlertCircle, Utensils, User } from "lucide-react";
 import { UserProfile } from "@/types";
 
 interface Step1Props {
   profile: UserProfile;
   toggleSelection: (key: keyof UserProfile, value: string) => void;
+  setProfile: React.Dispatch<React.SetStateAction<UserProfile>>;
 }
 
 export const Step1Preferences: React.FC<Step1Props> = ({
   profile,
   toggleSelection,
+  setProfile,
 }) => {
   const [customGoal, setCustomGoal] = useState("");
   const [customAllergy, setCustomAllergy] = useState("");
@@ -27,16 +29,99 @@ export const Step1Preferences: React.FC<Step1Props> = ({
     }
   };
 
+  const handleProfileChange = (
+    field: keyof UserProfile,
+    value: string | number
+  ) => {
+    setProfile((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   return (
     <div className="flex-1 animate-fade-in overflow-y-auto max-h-[600px] pr-2 choices">
       <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-        Ceritain tentang seleramu.
+        Ceritain tentang dirimu.
       </h2>
       <p className="text-gray-500 dark:text-gray-400 mb-8">
-        Pilih makanan favorit & goal kamu.
+        Isi data diri dan pilih preferensi makanan & goal kamu.
       </p>
 
       <div className="space-y-6 mb-10">
+        {/* Personal Information */}
+        <div className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-2xl border dark:border-gray-700">
+          <h3 className="flex items-center gap-2 font-semibold text-gray-800 dark:text-white mb-4">
+            <User className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            Informasi Pribadi
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                Username
+              </label>
+              <input
+                type="text"
+                value={profile.username}
+                onChange={(e) =>
+                  handleProfileChange("username", e.target.value)
+                }
+                defaultValue={profile.name}
+                placeholder="johndoe"
+                className="w-full p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                Umur (tahun)
+              </label>
+              <input
+                type="number"
+                value={profile.age || ""}
+                onChange={(e) =>
+                  handleProfileChange("age", parseInt(e.target.value) || 0)
+                }
+                placeholder="25"
+                min="1"
+                max="150"
+                className="w-full p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                Tinggi (cm)
+              </label>
+              <input
+                type="number"
+                value={profile.height || ""}
+                onChange={(e) =>
+                  handleProfileChange("height", parseInt(e.target.value) || 0)
+                }
+                placeholder="170"
+                min="50"
+                max="300"
+                className="w-full p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 dark:text-gray-400 block mb-1">
+                Berat (kg)
+              </label>
+              <input
+                type="number"
+                value={profile.weight || ""}
+                onChange={(e) =>
+                  handleProfileChange("weight", parseInt(e.target.value) || 0)
+                }
+                placeholder="65"
+                min="20"
+                max="500"
+                className="w-full p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Goals Section */}
         <div>
           <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 block mb-3 flex items-center gap-2">

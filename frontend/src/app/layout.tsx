@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NutriFlow - AI Nutrition Tracker",
+  title: "NutriMori - AI Nutrition Tracker",
   description: "Track your nutrition with AI-powered insights",
 };
 

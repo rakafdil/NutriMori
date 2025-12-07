@@ -30,6 +30,10 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+button {
+  cursor: pointer;
+}
+
 .choices {
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */

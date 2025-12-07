@@ -3,6 +3,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, PieChart, MessageSquare, User } from "lucide-react";
+import Image from "next/image";
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Home" },
@@ -19,8 +20,16 @@ const Sidebar: React.FC = () => {
       <div className="p-8">
         <Link href="/dashboard">
           <h1 className="text-2xl font-extrabold text-emerald-800 dark:text-emerald-400 tracking-tight flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-lime-400 rounded-lg"></div>
-            NutriFlow
+            <div className="flex w-8 h-8 rounded-lg justify-center items-center">
+              <Image
+                src={"logo.svg"}
+                width={20}
+                height={20}
+                alt="logo"
+                className="object-cover w-fit h-fit"
+              />
+            </div>
+            NutriMori
           </h1>
         </Link>
       </div>

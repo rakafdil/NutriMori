@@ -1,120 +1,117 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
-  Patch,
   Post,
-  Request,
-  UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiCreatedResponse,
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-  ApiUnauthorizedResponse,
-} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { AuthResponseDto, ChangePasswordDto, LoginDto, RegisterDto } from './dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { LoginDto, RegisterDto } from './dto';
 
-@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Post('register')
-  @ApiOperation({
-    summary: 'Register new user',
-    description: 'Create a new user account with email and password',
-  })
-  @ApiCreatedResponse({
-    description: 'User successfully registered',
-    type: AuthResponseDto,
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid input or email already exists',
-  })
-  async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
-    return this.authService.register(registerDto);
+  @Post('signup')
+  async register(@Body() registerDto: RegisterDto) {
+    const result = await this.authService.register(registerDto);
+    return {
+      success: true,
+      message: !result.access_token
+        ? 'Please check your email to confirm your account'
+        : 'User registered successfully',
+      data: result,
+    };
   }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Login user',
-    description: 'Authenticate user and receive JWT token',
-  })
-  @ApiOkResponse({
-    description: 'User successfully logged in',
-    type: AuthResponseDto,
-  })
-  @ApiUnauthorizedResponse({
-    description: 'Invalid credentials',
-  })
-  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto) {
+    const result = await this.authService.login(loginDto);
+    return {
+      success: true,
+      message: 'Login successful',
+      data: result,
+    };
   }
 
-  @Get('me')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({
-    summary: 'Get current user',
-    description: 'Get currently authenticated user information',
-  })
-  @ApiOkResponse({
-    description: 'User information retrieved',
-    schema: {
-      properties: {
-        id: { type: 'string', format: 'uuid' },
-        email: { type: 'string', format: 'email' },
-        name: { type: 'string', nullable: true },
-        created_at: { type: 'string', format: 'date-time' },
-      },
-    },
-  })
-  @ApiUnauthorizedResponse({
-    description: 'Invalid or missing JWT token',
-  })
-  async getMe(@Request() req: any) {
-    return this.authService.validateUser(req.user.id);
+  @Get('verify')
+  async verify(@Headers('authorization') authorization: string) {
+    const token = authorization?.replace('Bearer ', '');
+    if (!token) {
+      return { success: false, message: 'No token provided' };
+    }
+
+    const user = await this.authService.validateUser(token);
+    return {
+      success: true,
+      message: 'Token is valid',
+      data: { user },
+    };
   }
 
-  @Patch('change-password')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({
-    summary: 'Change user password',
-    description: 'Change password for currently authenticated user',
-  })
-  @ApiOkResponse({
-    description: 'Password successfully changed',
-    schema: {
-      properties: {
-        message: { type: 'string', example: 'Password changed successfully' },
-      },
-    },
-  })
-  @ApiBadRequestResponse({
-    description: 'Invalid old password or missing fields',
-  })
-  @ApiUnauthorizedResponse({
-    description: 'Invalid or missing JWT token',
-  })
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body('refresh_token') refreshToken: string) {
+    const result = await this.authService.refreshToken(refreshToken);
+    return {
+      success: true,
+      message: 'Token refreshed successfully',
+      data: result,
+    };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Headers('authorization') authorization: string) {
+    const token = authorization?.replace('Bearer ', '');
+    if (token === undefined) {
+      throw new Error('No vaild session found');
+    }
+    await this.authService.logout(token);
+    return {
+      success: true,
+      message: 'Logged out successfully',
+    };
+  }
+
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
   async changePassword(
-    @Request() req: any,
-    @Body() changePasswordDto: ChangePasswordDto,
+    @Headers('authorization') authorization: string,
+    @Body('new_password') newPassword: string,
   ) {
-    return this.authService.changePassword(
-      req.user.id,
-      changePasswordDto.oldPassword,
-      changePasswordDto.newPassword,
-    );
+    const token = authorization?.replace('Bearer ', '');
+    await this.authService.changePassword(token, newPassword);
+    return {
+      success: true,
+      message: 'Password changed successfully',
+    };
+  }
+
+  @Post('reset-password-request')
+  @HttpCode(HttpStatus.OK)
+  async resetPasswordRequest(@Body('email') email: string) {
+    await this.authService.resetPasswordRequest(email);
+    return {
+      success: true,
+      message: 'Password reset email sent',
+    };
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Headers('authorization') authorization: string,
+    @Body('new_password') newPassword: string,
+  ) {
+    const token = authorization?.replace('Bearer ', '');
+    await this.authService.resetPassword(token, newPassword);
+    return {
+      success: true,
+      message: 'Password reset successfully',
+    };
   }
 }

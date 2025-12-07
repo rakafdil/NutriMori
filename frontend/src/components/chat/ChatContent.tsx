@@ -43,7 +43,7 @@ const ChatContent: React.FC = () => {
         model: "gemini-2.5-flash",
         config: {
           systemInstruction:
-            "You are a friendly, empathetic nutrition assistant named NutriFlow. Keep answers concise, helpful, and scientifically accurate but casual. Indonesian language.",
+            "You are a friendly, empathetic nutrition assistant named NutriMori. Keep answers concise, helpful, and scientifically accurate but casual. Indonesian language.",
         },
       });
 
@@ -89,7 +89,7 @@ const ChatContent: React.FC = () => {
           </div>
           <div>
             <h3 className="font-bold text-gray-800 dark:text-white">
-              NutriFlow Assistant
+              NutriMori Assistant
             </h3>
             <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>{" "}
