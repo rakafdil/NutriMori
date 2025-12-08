@@ -43,10 +43,10 @@ export class UserPreferencesService {
       .from('user_preferences')
       .insert({
         user_id: createDto.userId,
-        diet_type: createDto.dietType,
-        disliked_foods: createDto.dislikedFoods || [],
         allergies: createDto.allergies || [],
         goals: createDto.goals,
+        tastes: createDto.tastes || [],
+        medical_history: createDto.medical_history || [],
       })
       .select('*, users(*)')
       .single();
@@ -73,13 +73,12 @@ export class UserPreferencesService {
     await this.findByUserId(userId);
 
     const updateData: Record<string, unknown> = {};
-    if (updateDto.dietType !== undefined)
-      updateData.diet_type = updateDto.dietType;
-    if (updateDto.dislikedFoods !== undefined)
-      updateData.disliked_foods = updateDto.dislikedFoods;
     if (updateDto.allergies !== undefined)
       updateData.allergies = updateDto.allergies;
     if (updateDto.goals !== undefined) updateData.goals = updateDto.goals;
+    if (updateDto.tastes !== undefined) updateData.tastes = updateDto.tastes;
+    if (updateDto.medical_history !== undefined)
+      updateData.medical_history = updateDto.medical_history;
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await this.supabase
@@ -110,10 +109,10 @@ export class UserPreferencesService {
       .upsert(
         {
           user_id: userId,
-          diet_type: dto.dietType,
-          disliked_foods: dto.dislikedFoods || [],
           allergies: dto.allergies || [],
           goals: dto.goals,
+          tastes: dto.tastes || [],
+          medical_history: dto.medical_history || [],
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' },

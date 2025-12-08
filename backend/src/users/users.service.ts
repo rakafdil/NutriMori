@@ -19,18 +19,20 @@ export class UsersService {
     const { data: existingUser } = await this.supabase
       .from('users')
       .select('id')
-      .eq('email', createUserDto.email)
+      .eq('username', createUserDto.username)
       .single();
 
     if (existingUser) {
-      throw new ConflictException('User with this email already exists');
+      throw new ConflictException('User with this username already exists');
     }
 
     const { data, error } = await this.supabase
       .from('users')
       .insert({
-        email: createUserDto.email,
-        name: createUserDto.name,
+        username: createUserDto.username,
+        age: createUserDto.age,
+        height_cm: createUserDto.height_cm,
+        weight_kg: createUserDto.weight_kg,
       })
       .select('*, user_preferences(*)')
       .single();
@@ -77,15 +79,15 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string) {
+  async findByUsername(username: string) {
     const { data: user, error } = await this.supabase
       .from('users')
       .select('*, user_preferences(*)')
-      .eq('email', email)
+      .eq('username', username)
       .single();
 
     if (error || !user) {
-      throw new NotFoundException(`User with email ${email} not found`);
+      throw new NotFoundException(`User with username ${username} not found`);
     }
 
     return user;
@@ -95,26 +97,32 @@ export class UsersService {
     // Check if user exists
     await this.findOne(id);
 
-    // Check if email is already in use by another user
-    if (updateUserDto.email) {
+    // Check if username is already in use by another user
+    if (updateUserDto.username) {
       const { data: existingUser } = await this.supabase
         .from('users')
         .select('id')
-        .eq('email', updateUserDto.email)
+        .eq('username', updateUserDto.username)
         .neq('id', id)
         .single();
 
       if (existingUser) {
-        throw new ConflictException('Email already in use');
+        throw new ConflictException('Username already in use');
       }
     }
 
+    const updateData: Record<string, unknown> = {};
+    if (updateUserDto.username !== undefined)
+      updateData.username = updateUserDto.username;
+    if (updateUserDto.age !== undefined) updateData.age = updateUserDto.age;
+    if (updateUserDto.height_cm !== undefined)
+      updateData.height_cm = updateUserDto.height_cm;
+    if (updateUserDto.weight_kg !== undefined)
+      updateData.weight_kg = updateUserDto.weight_kg;
+
     const { data, error } = await this.supabase
       .from('users')
-      .update({
-        email: updateUserDto.email,
-        name: updateUserDto.name,
-      })
+      .update(updateData)
       .eq('id', id)
       .select('*, user_preferences(*)')
       .single();
