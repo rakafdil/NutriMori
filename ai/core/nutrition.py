@@ -1,88 +1,45 @@
 import pandas as pd
 from pathlib import Path
+import os
 from .portion import portion_to_gram
-
-ROOT = Path(__file__).resolve().parents[2]
-DATA_PATH = ROOT / "ai" / "data" / "data pangan bersih.parquet"
 
 class NutritionCalculator:
     def __init__(self):
+        # DETEKSI OTOMATIS PATH
+        if os.path.exists("/content/NutriMori/ai/data/data pangan bersih.parquet"):
+             DATA_PATH = Path("/content/NutriMori/ai/data/data pangan bersih.parquet")
+        else:
+             DATA_PATH = Path("/content/ai/data/data pangan bersih.parquet")
+
         self.df = pd.read_parquet(DATA_PATH)
-        
-        # Mengisi nilai NaN dengan 0 agar perhitungan tidak error/None
-        # (Opsional: aktifkan jika ingin hasil penjumlahan selalu ada angkanya)
-        # numeric_cols = self.df.select_dtypes(include=['float64', 'int64']).columns
-        # self.df[numeric_cols] = self.df[numeric_cols].fillna(0)
+        # Gunakan list kolom nutrisi lengkap sesuai kebutuhanmu
+        self.nutr_cols = ["Energi", "Protein", "Lemak", "Karbohidrat", "Serat", "Air", "Kalsium", "Besi"] 
+        for c in self.nutr_cols:
+            if c in self.df.columns: self.df[c] = self.df[c].fillna(0.0)
 
-        # DAFTAR LENGKAP (21 Nutrisi)
-        self.nutr_cols = [
-            # Makro Utama
-            "Energi", "Protein", "Lemak", "Karbohidrat", "Serat", "Air",
+    def get_nutrition_smart(self, match_results, jumlah=1, satuan="porsi"):
+        if not match_results: return None
+        top = match_results[0]
+        
+        if top["similarity"] >= 0.90:
+            row = self.df.iloc[top["food_id"]]
+            gram = portion_to_gram(jumlah, satuan, row.get("nama_clean"))
+            res = {"gram": gram, "nama_pilihan": row["Nama Bahan Makanan"], "metode": "exact"}
+            for c in self.nutr_cols: res[c] = float(row.get(c,0)) * (gram/100)
+            return res
+        else:
+            cands = match_results[:3]
+            gram = portion_to_gram(jumlah, satuan, top.get("nama_clean"))
+            acc = {c: 0.0 for c in self.nutr_cols}
+            valid = 0
+            names = []
+            for item in cands:
+                row = self.df.iloc[item["food_id"]]
+                names.append(row["Nama Bahan Makanan"])
+                for c in self.nutr_cols: acc[c] += float(row.get(c,0))
+                valid += 1
             
-            # Mineral
-            "Kalsium", "Fosfor", "Besi", "Natrium", "Kalium", 
-            "Tembaga", "Seng", "Abu",
-            
-            # Vitamin
-            "Vitamin C", "Vitamin B1", "Vitamin B2", "Niasin",
-            "Retinol", "Beta-karoten", "Karoten total"
-        ]
-
-    def get_food_nutrition(self, food_id, jumlah=1, satuan="porsi"):
-        # Pastikan food_id valid
-        if food_id < 0 or food_id >= len(self.df):
-            return None
-
-        row = self.df.iloc[food_id]
-        
-        # Hitung berat dalam gram
-        gram = portion_to_gram(jumlah, satuan, row["nama_clean"])
-        
-        # Faktor pengali (data nutrisi per 100g)
-        # Kita perhitungkan juga BDD (Berat Dapat Dimakan) jika ada datanya
-        bdd_factor = 1.0
-        if "BDD" in row and pd.notna(row["BDD"]):
-             # BDD di dataset biasanya dalam persen (contoh: 80.0 artinya 80%)
-             # Tapi jika hitungan 'portion_to_gram' sudah berasumsi "berat bersih siap makan",
-             # maka BDD tidak perlu dikalikan lagi. 
-             # ASUMSI: 'gram' adalah berat makanan yang akan dimakan langsung.
-             pass 
-
-        faktor = gram / 100.0
-        
-        result = {
-            "nama": row["Nama Bahan Makanan"],
-            "gram": gram,
-        }
-
-        for col in self.nutr_cols:
-            # Ambil nilai, jika kosong/NaN anggap None (atau 0 tergantung selera)
-            val = row.get(col)
-            if pd.notna(val):
-                result[col] = float(val) * faktor
-            else:
-                result[col] = 0.0 # Atau ganti 0.0 jika ingin rapi
-
-        return result
-
-    def calculate_daily(self, food_items):
-        total = {col: 0.0 for col in self.nutr_cols}
-        details = []
-
-        for item in food_items:
-            info = self.get_food_nutrition(
-                item["food_id"],
-                item.get("jumlah", 1),
-                item.get("satuan", "porsi"),
-            )
-            
-            if info:
-                details.append(info)
-                for col in self.nutr_cols:
-                    if info[col] is not None:
-                        total[col] += info[col]
-
-        return {
-            "total": total,
-            "details": details,
-        }
+            res = {"gram": gram, "nama_pilihan": "Mix: " + ", ".join(names[:2]), "metode": "average"}
+            if valid > 0:
+                for c in self.nutr_cols: res[c] = (acc[c]/valid) * (gram/100)
+            return res
