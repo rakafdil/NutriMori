@@ -11,27 +11,8 @@ export class CreateUserPreferenceDto {
   userId: string;
 
   @ApiPropertyOptional({ 
-    description: 'Diet type', 
-    example: 'vegan',
-    enum: ['vegan', 'vegetarian', 'low-carb', 'keto', 'paleo', 'mediterranean', 'none']
-  })
-  @IsOptional()
-  @IsString()
-  dietType?: string;
-
-  @ApiPropertyOptional({ 
-    description: 'List of disliked foods', 
-    example: ['tofu', 'mushrooms'],
-    type: [String]
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  dislikedFoods?: string[];
-
-  @ApiPropertyOptional({ 
-    description: 'List of allergies', 
-    example: ['peanuts', 'shellfish'],
+    description: 'Allergies / Foods to Avoid', 
+    example: ['nuts', 'seafood', 'gluten'],
     type: [String]
   })
   @IsOptional()
@@ -40,37 +21,38 @@ export class CreateUserPreferenceDto {
   allergies?: string[];
 
   @ApiPropertyOptional({ 
-    description: 'Health and fitness goals', 
-    example: 'Lose weight and build muscle'
+    description: 'Health Goals', 
+    example: 'bulking'
   })
   @IsOptional()
   @IsString()
   goals?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Food taste preferences', 
+    example: ['sweet', 'savory', 'spicy'],
+    type: [String]
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tastes?: string[];
+
+  @ApiPropertyOptional({ 
+    description: 'Medical history or conditions', 
+    example: ['diabetes', 'hypertension'],
+    type: [String]
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  medical_history?: string[];
 }
 
 export class UpdateUserPreferenceDto {
   @ApiPropertyOptional({ 
-    description: 'Diet type', 
-    example: 'vegan',
-    enum: ['vegan', 'vegetarian', 'low-carb', 'keto', 'paleo', 'mediterranean', 'none']
-  })
-  @IsOptional()
-  @IsString()
-  dietType?: string;
-
-  @ApiPropertyOptional({ 
-    description: 'List of disliked foods', 
-    example: ['tofu', 'mushrooms'],
-    type: [String]
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  dislikedFoods?: string[];
-
-  @ApiPropertyOptional({ 
-    description: 'List of allergies', 
-    example: ['peanuts', 'shellfish'],
+    description: 'Allergies / Foods to Avoid', 
+    example: ['nuts', 'seafood', 'gluten'],
     type: [String]
   })
   @IsOptional()
@@ -79,10 +61,30 @@ export class UpdateUserPreferenceDto {
   allergies?: string[];
 
   @ApiPropertyOptional({ 
-    description: 'Health and fitness goals', 
-    example: 'Lose weight and build muscle'
+    description: 'Health Goals', 
+    example: 'bulking'
   })
   @IsOptional()
   @IsString()
   goals?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Food taste preferences', 
+    example: ['sweet', 'savory', 'spicy'],
+    type: [String]
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tastes?: string[];
+
+  @ApiPropertyOptional({ 
+    description: 'Medical history or conditions', 
+    example: ['diabetes', 'hypertension'],
+    type: [String]
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  medical_history?: string[];
 }
