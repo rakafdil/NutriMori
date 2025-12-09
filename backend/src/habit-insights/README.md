@@ -2,6 +2,8 @@
 
 Module ini menyediakan analisis pola makan pengguna dengan berbagai periode waktu (weekly, monthly, yearly, overall) menggunakan Machine Learning. Sistem mengintegrasikan NestJS backend dengan Python ML API untuk menghasilkan insight mendalam tentang kebiasaan makan, deteksi pola positif/negatif, dan rekomendasi personal.
 
+> **🔄 UPDATED**: Service telah disesuaikan dengan struktur database `food_logs` (bukan `user_food_logs`)
+
 ## 📋 Fitur Utama
 
 - **Multi-Period Analysis**: Mendukung analisis weekly, monthly, yearly, dan overall
@@ -82,6 +84,48 @@ Menganalisis pola makan pengguna dan menghasilkan insight berdasarkan periode ya
 | `monthly` | Last 30 days                         | Review bulanan                    |
 | `yearly`  | Last 365 days                        | Trend tahunan                     |
 | `overall` | All time (up to 10 years)            | Comprehensive history analysis    |
+
+## 🗄️ Database Structure
+
+Service ini menggunakan tabel-tabel berikut dari database:
+
+### **Core Tables**
+- `food_logs` - Log makanan user (TABEL INTI)
+- `food_log_items` - Detail items per log
+- `food_items` - Master data makanan
+- `food_nutrients` - Data nutrisi per makanan
+- `food_categories` - Kategori makanan (untuk pattern detection)
+- `users` - Profil user (untuk BMR calculation)
+- `user_preferences` - Goals & targets user
+
+### **Query Pattern**
+```typescript
+// Service melakukan JOIN nested untuk mendapatkan semua data
+supabase
+  .from('food_logs')
+  .select(`
+    log_id, user_id, raw_text, meal_type, created_at,
+    food_log_items (
+      gram_weight,
+      food_items (
+        name, serving_size,
+        food_nutrients (calories, protein, carbs, fat, sugar, fiber),
+        food_categories (category)
+      )
+    )
+  `)
+  .eq('user_id', userId)
+  .gte('created_at', startDate)
+  .lte('created_at', endDate);
+```
+
+### **Nutrient Calculation**
+```typescript
+// Agregasi nutrisi per log dengan rumus:
+nutrients.calories = Σ (item.nutrient.calories × item.gram_weight / food_item.serving_size)
+```
+
+📖 **Dokumentasi lengkap**: Lihat [HABIT_INSIGHTS_SCHEMA.md](../../database/HABIT_INSIGHTS_SCHEMA.md)
 
 **Example Requests**:
 
