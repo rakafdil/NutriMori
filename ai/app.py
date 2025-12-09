@@ -213,7 +213,7 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5050))  # Changed default port to 5050
     debug = os.environ.get('DEBUG', 'False').lower() == 'true'
     try:
-        app.run(host='0.0.0.0', port=port, debug=debug)
+        app.run(host='0.0.0.0', port=port, debug=True)
     except OSError as e:
         print(f"Port {port} is unavailable or blocked. Try a different port or check your firewall settings.")
         print(f"Error details: {e}")
