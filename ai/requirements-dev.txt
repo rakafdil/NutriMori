@@ -1,0 +1,4 @@
+-r requirements.txt
+torch==2.5.1
+transformers==4.46.3
+# Add any other dev/test tools below
