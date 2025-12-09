@@ -7,12 +7,16 @@ from sentence_transformers import SentenceTransformer
 
 class FoodMatcher:
     def __init__(self):
-        # DETEKSI OTOMATIS PATH
-        # Cek apakah kita ada di dalam folder NutriMori
-        if os.path.exists("/content/NutriMori/ai/data"):
+        # DETEKSI OTOMATIS PATH - Updated for Windows
+        current_dir = Path(__file__).parent.parent
+        data_dir = current_dir / "data"
+        
+        if data_dir.exists():
+            ROOT = data_dir
+        elif os.path.exists("/content/NutriMori/ai/data"):
             ROOT = Path("/content/NutriMori/ai/data")
         else:
-            ROOT = Path("/content/ai/data") # Fallback path lama
+            ROOT = Path("/content/ai/data")
 
         print(f"Matcher membaca data dari: {ROOT}")
 

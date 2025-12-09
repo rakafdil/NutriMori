@@ -5,8 +5,13 @@ from .portion import portion_to_gram
 
 class NutritionCalculator:
     def __init__(self):
-        # DETEKSI OTOMATIS PATH
-        if os.path.exists("/content/NutriMori/ai/data/data pangan bersih.parquet"):
+        # DETEKSI OTOMATIS PATH - Updated for Windows
+        current_dir = Path(__file__).parent.parent
+        data_path = current_dir / "data" / "data pangan bersih.parquet"
+        
+        if data_path.exists():
+            DATA_PATH = data_path
+        elif os.path.exists("/content/NutriMori/ai/data/data pangan bersih.parquet"):
              DATA_PATH = Path("/content/NutriMori/ai/data/data pangan bersih.parquet")
         else:
              DATA_PATH = Path("/content/ai/data/data pangan bersih.parquet")

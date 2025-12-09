@@ -1,7 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PostgrestError } from '@supabase/supabase-js'; // Import this type
 import { SupabaseService } from '../supabase';
-import { CreateFoodLogDto, LogFoodInputDto, UpdateFoodLogDto } from './dto';
-import { FoodLogWithRelations, DailySummary, WeeklySummary } from './types';
+import {
+  CreateFoodLogDto,
+  LogFoodInputDto,
+  UpdateFoodLogDto,
+  CreateFoodLogItemDto,
+} from './dto';
+import {
+  FoodLogWithRelations,
+  DailySummary,
+  WeeklySummary,
+  MealType,
+} from './types';
 
 @Injectable()
 export class FoodLogsService {
@@ -9,6 +25,20 @@ export class FoodLogsService {
 
   private get supabase() {
     return this.supabaseService.getClient();
+  }
+
+  // Helper to handle Supabase errors consistently
+  private handleSupabaseError(
+    error: PostgrestError | null,
+    fallbackMessage: string,
+  ): never {
+    if (error) {
+      // Wrap the Supabase error message in a standard NestJS exception
+      throw new InternalServerErrorException(
+        `${fallbackMessage}: ${error.message}`,
+      );
+    }
+    throw new InternalServerErrorException(fallbackMessage);
   }
 
   async create(createDto: CreateFoodLogDto): Promise<FoodLogWithRelations> {
@@ -23,29 +53,29 @@ export class FoodLogsService {
       throw new NotFoundException(`User with ID ${createDto.userId} not found`);
     }
 
+    const insertData = {
+      user_id: createDto.userId,
+      raw_text: createDto.rawText,
+      meal_type: createDto.mealType,
+      parsed_by_llm: createDto.parsedByLlm ?? false,
+    };
+
     const result = await this.supabase
-      .from('user_food_logs')
-      .insert({
-        user_id: createDto.userId,
-        text: createDto.text,
-        normalized_text: createDto.normalizedText,
-        nutrients: createDto.nutrients,
-        food_item_id: createDto.foodItemId,
-        rule_id: createDto.ruleId,
-      })
-      .select(
-        `
-        *,
-        users(*),
-        food_items(*, food_nutrients(*)),
-        nutrition_rules(*)
-      `,
-      )
+      .from('food_logs')
+      .insert(insertData)
+      .select('*, food_log_items(*)')
       .single();
 
-    if (result.error || !result.data) {
-      throw result.error || new Error('Failed to create food log');
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to create food log');
     }
+
+    if (!result.data) {
+      throw new InternalServerErrorException(
+        'Failed to create food log: No data returned',
+      );
+    }
+
     return result.data as FoodLogWithRelations;
   }
 
@@ -61,56 +91,81 @@ export class FoodLogsService {
       throw new NotFoundException(`User with ID ${input.userId} not found`);
     }
 
-    // Here you would integrate with AI service to:
-    // 1. Normalize the text
-    // 2. Extract nutrients
-    // 3. Generate embeddings
-    // 4. Match with existing food items
-    // 5. Check nutrition rules
+    const insertData = {
+      user_id: input.userId, // Fixed casing from UserId to userId based on standard conventions
+      raw_text: input.text,
+      meal_type: input.mealType,
+      parsed_by_llm: false,
+    };
 
-    // For now, create a basic log entry
     const result = await this.supabase
-      .from('user_food_logs')
-      .insert({
-        user_id: input.userId,
-        text: input.text,
-        normalized_text: input.text.toLowerCase().trim(),
-      })
-      .select(
-        `
-        *,
-        users(*),
-        food_items(*, food_nutrients(*)),
-        nutrition_rules(*)
-      `,
-      )
+      .from('food_logs')
+      .insert(insertData)
+      .select('*, food_log_items(*)')
       .single();
 
-    if (result.error || !result.data) {
-      throw result.error || new Error('Failed to log food');
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to log food');
     }
+
+    if (!result.data) {
+      throw new InternalServerErrorException(
+        'Failed to log food: No data returned',
+      );
+    }
+
+    // TODO: Integrate with AI service
+
     return result.data as FoodLogWithRelations;
+  }
+
+  async createFoodLogItem(
+    itemDto: CreateFoodLogItemDto,
+  ): Promise<FoodLogWithRelations> {
+    // Verify log exists and belongs to user
+    await this.findOne(itemDto.logId);
+
+    const insertData = {
+      log_id: itemDto.logId,
+      detected_name: itemDto.detectedName,
+      food_id: itemDto.foodId,
+      confidence_score: itemDto.confidenceScore,
+      qty: itemDto.qty,
+      unit: itemDto.unit,
+      gram_weight: itemDto.gramWeight,
+    };
+
+    const result = await this.supabase
+      .from('food_log_items')
+      .insert(insertData)
+      .select('*')
+      .single();
+
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to create food log item');
+    }
+
+    // Return the full log with items
+    return this.findOne(itemDto.logId);
   }
 
   async findAll(options?: {
     userId?: string;
+    mealType?: MealType;
     startDate?: Date;
     endDate?: Date;
   }): Promise<FoodLogWithRelations[]> {
     let query = this.supabase
-      .from('user_food_logs')
-      .select(
-        `
-        *,
-        users(*),
-        food_items(*, food_nutrients(*)),
-        nutrition_rules(*)
-      `,
-      )
+      .from('food_logs')
+      .select('*, food_log_items(*)')
       .order('created_at', { ascending: false });
 
     if (options?.userId) {
       query = query.eq('user_id', options.userId);
+    }
+
+    if (options?.mealType) {
+      query = query.eq('meal_type', options.mealType);
     }
 
     if (options?.startDate) {
@@ -123,7 +178,10 @@ export class FoodLogsService {
 
     const result = await query;
 
-    if (result.error) throw result.error;
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to fetch food logs');
+    }
+
     return (result.data || []) as FoodLogWithRelations[];
   }
 
@@ -132,37 +190,35 @@ export class FoodLogsService {
     limit = 50,
   ): Promise<FoodLogWithRelations[]> {
     const result = await this.supabase
-      .from('user_food_logs')
-      .select(
-        `
-        *,
-        food_items(*, food_nutrients(*)),
-        nutrition_rules(*)
-      `,
-      )
+      .from('food_logs')
+      .select('*, food_log_items(*)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (result.error) throw result.error;
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to fetch user logs');
+    }
+
     return (result.data || []) as FoodLogWithRelations[];
   }
 
   async findOne(id: string): Promise<FoodLogWithRelations> {
     const result = await this.supabase
-      .from('user_food_logs')
-      .select(
-        `
-        *,
-        users(*),
-        food_items(*, food_nutrients(*), food_categories(*)),
-        nutrition_rules(*)
-      `,
-      )
-      .eq('id', id)
+      .from('food_logs')
+      .select('*, food_log_items(*)')
+      .eq('log_id', id)
       .single();
 
-    if (result.error || !result.data) {
+    if (result.error) {
+      // If error code is PGRST116, it implies no rows returned (Not Found)
+      if (result.error.code === 'PGRST116') {
+        throw new NotFoundException(`Food log with ID ${id} not found`);
+      }
+      this.handleSupabaseError(result.error, 'Failed to find food log');
+    }
+
+    if (!result.data) {
       throw new NotFoundException(`Food log with ID ${id} not found`);
     }
 
@@ -176,49 +232,66 @@ export class FoodLogsService {
     await this.findOne(id);
 
     const updateData: Record<string, unknown> = {};
-    if (updateDto.text !== undefined) updateData.text = updateDto.text;
-    if (updateDto.normalizedText !== undefined)
-      updateData.normalized_text = updateDto.normalizedText;
-    if (updateDto.nutrients !== undefined)
-      updateData.nutrients = updateDto.nutrients;
-    if (updateDto.foodItemId !== undefined)
-      updateData.food_item_id = updateDto.foodItemId;
-    if (updateDto.ruleId !== undefined) updateData.rule_id = updateDto.ruleId;
+    if (updateDto.rawText !== undefined)
+      updateData.raw_text = updateDto.rawText;
+    if (updateDto.mealType !== undefined)
+      updateData.meal_type = updateDto.mealType;
+    if (updateDto.parsedByLlm !== undefined)
+      updateData.parsed_by_llm = updateDto.parsedByLlm;
 
     const result = await this.supabase
-      .from('user_food_logs')
+      .from('food_logs')
       .update(updateData)
-      .eq('id', id)
-      .select(
-        `
-        *,
-        users(*),
-        food_items(*, food_nutrients(*)),
-        nutrition_rules(*)
-      `,
-      )
+      .eq('log_id', id)
+      .select('*, food_log_items(*)')
       .single();
 
-    if (result.error || !result.data) {
-      throw result.error || new Error('Failed to update food log');
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to update food log');
     }
+
+    if (!result.data) {
+      throw new InternalServerErrorException(
+        'Failed to update food log: No data returned',
+      );
+    }
+
     return result.data as FoodLogWithRelations;
   }
 
   async remove(id: string): Promise<FoodLogWithRelations> {
-    await this.findOne(id);
+    const log = await this.findOne(id);
 
     const result = await this.supabase
-      .from('user_food_logs')
+      .from('food_logs')
       .delete()
-      .eq('id', id)
-      .select()
+      .eq('log_id', id)
+      .select('*, food_log_items(*)')
       .single();
 
-    if (result.error || !result.data) {
-      throw result.error || new Error('Failed to delete food log');
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to delete food log');
     }
-    return result.data as FoodLogWithRelations;
+
+    return log;
+  }
+
+  async removeFoodLogItem(itemId: string): Promise<void> {
+    const result = await this.supabase
+      .from('food_log_items')
+      .delete()
+      .eq('item_id', itemId)
+      .single();
+
+    // Supabase delete often returns 'PGRST116' if the item didn't exist to begin with
+    if (result.error) {
+      if (result.error.code === 'PGRST116') {
+        throw new NotFoundException(
+          `Food log item with ID ${itemId} not found`,
+        );
+      }
+      this.handleSupabaseError(result.error, 'Failed to delete food log item');
+    }
   }
 
   async getDailySummary(userId: string, date: Date): Promise<DailySummary> {
@@ -229,17 +302,19 @@ export class FoodLogsService {
     endOfDay.setHours(23, 59, 59, 999);
 
     const result = await this.supabase
-      .from('user_food_logs')
-      .select('*, food_items(*, food_nutrients(*))')
+      .from('food_logs')
+      .select('*, food_log_items(*)')
       .eq('user_id', userId)
       .gte('created_at', startOfDay.toISOString())
       .lte('created_at', endOfDay.toISOString());
 
-    if (result.error) throw result.error;
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to get daily summary');
+    }
 
     const typedLogs = (result.data || []) as FoodLogWithRelations[];
 
-    // Calculate totals from nutrients
+    // TODO: Calculate totals
     const totals = {
       calories: 0,
       protein: 0,
@@ -250,18 +325,6 @@ export class FoodLogsService {
       fiber: 0,
       cholesterol: 0,
     };
-
-    for (const log of typedLogs) {
-      if (log.nutrients && typeof log.nutrients === 'object') {
-        const nutrients = log.nutrients;
-        for (const key of Object.keys(totals) as Array<keyof typeof totals>) {
-          const value = nutrients[key];
-          if (typeof value === 'number') {
-            totals[key] += value;
-          }
-        }
-      }
-    }
 
     return {
       date,
@@ -279,18 +342,19 @@ export class FoodLogsService {
     startDate.setDate(startDate.getDate() - 7);
 
     const result = await this.supabase
-      .from('user_food_logs')
-      .select('*, food_items(*, food_nutrients(*))')
+      .from('food_logs')
+      .select('*, food_log_items(*)')
       .eq('user_id', userId)
       .gte('created_at', startDate.toISOString())
       .lte('created_at', endDate.toISOString())
       .order('created_at', { ascending: true });
 
-    if (result.error) throw result.error;
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to get weekly summary');
+    }
 
     const typedLogs = (result.data || []) as FoodLogWithRelations[];
 
-    // Group by day
     const dailyData: Record<string, FoodLogWithRelations[]> = {};
     for (const log of typedLogs) {
       const dateKey = new Date(log.created_at).toISOString().split('T')[0];

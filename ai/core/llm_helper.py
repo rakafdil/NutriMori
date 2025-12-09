@@ -2,9 +2,8 @@ import google.generativeai as genai
 import os
 import json
 
-# --- PERBAIKAN DI SINI ---
-# Masukkan API Key langsung sebagai string (jangan lupa tanda kutip)
-MY_API_KEY = "AIzaSyDaTX-AxNEV8dAZ3vflCWZd3BRudhD9_aQ" # <- Ganti dengan key asli kamu jika ini salah
+# Load API key from environment or use hardcoded value
+MY_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=MY_API_KEY)
 
 model = genai.GenerativeModel('gemini-1.5-flash')
