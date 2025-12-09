@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsOptional, IsUUID } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+
+export enum PeriodType {
+    WEEKLY = 'weekly',
+    MONTHLY = 'monthly',
+    YEARLY = 'yearly',
+    OVERALL = 'overall'
+}
 
 export class GetHabitInsightDto {
     @ApiProperty({
@@ -9,9 +16,17 @@ export class GetHabitInsightDto {
     @IsUUID()
     userId: string;
 
+    @ApiProperty({
+        description: 'Analysis period type',
+        enum: PeriodType,
+        example: 'weekly',
+    })
+    @IsEnum(PeriodType)
+    period: PeriodType;
+
     @ApiPropertyOptional({
-        description: 'Start date for analysis (defaults to 3 weeks ago)',
-        example: '2025-11-17',
+        description: 'Start date for analysis (optional - auto-calculated based on period if not provided)',
+        example: '2023-10-01',
     })
     @IsOptional()
     @IsDateString()
@@ -19,25 +34,57 @@ export class GetHabitInsightDto {
 
     @ApiPropertyOptional({
         description: 'End date for analysis (defaults to today)',
-        example: '2025-12-08',
+        example: '2023-10-07',
     })
     @IsOptional()
     @IsDateString()
     endDate?: string;
 }
 
+export class DateRangeDto {
+    @ApiProperty({ description: 'Start date', example: '2023-10-01' })
+    start: string;
+
+    @ApiProperty({ description: 'End date', example: '2023-10-07' })
+    end: string;
+}
+
 export class HabitPatternDto {
-    @ApiProperty({ description: 'Pattern name', example: 'High sugar intake on weekends' })
-    pattern: string;
+    @ApiProperty({ 
+        description: 'Pattern type', 
+        example: 'negative',
+        enum: ['positive', 'negative', 'neutral']
+    })
+    type: 'positive' | 'negative' | 'neutral';
 
-    @ApiProperty({ description: 'Frequency of pattern', example: 'Weekly' })
-    frequency: string;
+    @ApiProperty({ description: 'Pattern message', example: 'Asupan gula berlebih di akhir pekan' })
+    message: string;
 
-    @ApiProperty({ description: 'Impact level', example: 'High', enum: ['Low', 'Medium', 'High'] })
-    impact: string;
+    @ApiPropertyOptional({ 
+        description: 'Days when pattern detected', 
+        example: ['Saturday', 'Sunday'],
+        type: [String]
+    })
+    daysDetected?: string[];
 
-    @ApiProperty({ description: 'Detailed description' })
-    description: string;
+    @ApiPropertyOptional({ 
+        description: 'Streak count for positive patterns', 
+        example: 5
+    })
+    streak?: number;
+
+    @ApiPropertyOptional({ 
+        description: 'Frequency of pattern occurrence',
+        example: 'Daily'
+    })
+    frequency?: string;
+
+    @ApiPropertyOptional({
+        description: 'Impact level',
+        example: 'High',
+        enum: ['Low', 'Medium', 'High']
+    })
+    impact?: string;
 }
 
 export class NutrientTrendDto {
@@ -75,26 +122,33 @@ export class HabitInsightResponseDto {
     @ApiProperty({ description: 'User ID' })
     userId: string;
 
-    @ApiProperty({ description: 'Analysis period start date' })
-    periodStart: string;
+    @ApiProperty({ 
+        description: 'Analysis period type',
+        enum: PeriodType,
+        example: 'weekly'
+    })
+    period: PeriodType;
 
-    @ApiProperty({ description: 'Analysis period end date' })
-    periodEnd: string;
+    @ApiProperty({ description: 'Date range', type: DateRangeDto })
+    dateRange: DateRangeDto;
 
-    @ApiProperty({ description: 'Total days analyzed', example: 21 })
+    @ApiProperty({ description: 'Total days analyzed', example: 7 })
     daysAnalyzed: number;
 
-    @ApiProperty({ description: 'Total meals logged', example: 63 })
+    @ApiProperty({ description: 'Total meals logged', example: 21 })
     totalMeals: number;
+
+    @ApiProperty({ description: 'Average daily calories', example: 2100 })
+    averageCalories: number;
+
+    @ApiProperty({ description: 'Identified habit patterns', type: [HabitPatternDto] })
+    patterns: HabitPatternDto[];
 
     @ApiProperty({ description: 'Overall summary from ML analysis' })
     summary: string;
 
     @ApiProperty({ description: 'Key recommendations from ML', type: [String] })
     recommendations: string[];
-
-    @ApiProperty({ description: 'Identified habit patterns', type: [HabitPatternDto] })
-    patterns: HabitPatternDto[];
 
     @ApiProperty({ description: 'Nutrient trends over time', type: [NutrientTrendDto] })
     nutrientTrends: NutrientTrendDto[];

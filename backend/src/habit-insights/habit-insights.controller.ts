@@ -20,7 +20,7 @@ export class HabitInsightsController {
     @ApiOperation({
         summary: 'Get habit pattern insights for a user',
         description:
-            'Analyzes user eating patterns over 3 weeks and provides AI-powered insights, recommendations, and health score.',
+            'Analyzes user eating patterns over specified period (weekly/monthly/yearly/overall) and provides AI-powered insights, recommendations, and health score.',
     })
     @ApiResponse({
         status: 200,
