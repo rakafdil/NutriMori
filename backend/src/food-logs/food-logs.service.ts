@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase';
 import { CreateFoodLogDto, LogFoodInputDto, UpdateFoodLogDto } from './dto';
+import { FoodLogWithRelations, DailySummary, WeeklySummary } from './types';
 
 @Injectable()
 export class FoodLogsService {
@@ -10,19 +11,19 @@ export class FoodLogsService {
     return this.supabaseService.getClient();
   }
 
-  async create(createDto: CreateFoodLogDto) {
+  async create(createDto: CreateFoodLogDto): Promise<FoodLogWithRelations> {
     // Verify user exists
-    const { data: user, error: userError } = await this.supabase
+    const userResult = await this.supabase
       .from('users')
       .select('id')
       .eq('id', createDto.userId)
       .single();
 
-    if (userError || !user) {
+    if (userResult.error || !userResult.data) {
       throw new NotFoundException(`User with ID ${createDto.userId} not found`);
     }
 
-    const { data, error } = await this.supabase
+    const result = await this.supabase
       .from('user_food_logs')
       .insert({
         user_id: createDto.userId,
@@ -42,19 +43,21 @@ export class FoodLogsService {
       )
       .single();
 
-    if (error) throw error;
-    return data;
+    if (result.error || !result.data) {
+      throw result.error || new Error('Failed to create food log');
+    }
+    return result.data as FoodLogWithRelations;
   }
 
-  async logFood(input: LogFoodInputDto) {
+  async logFood(input: LogFoodInputDto): Promise<FoodLogWithRelations> {
     // Verify user exists
-    const { data: user, error: userError } = await this.supabase
+    const userResult = await this.supabase
       .from('users')
       .select('id')
       .eq('id', input.userId)
       .single();
 
-    if (userError || !user) {
+    if (userResult.error || !userResult.data) {
       throw new NotFoundException(`User with ID ${input.userId} not found`);
     }
 
@@ -66,7 +69,7 @@ export class FoodLogsService {
     // 5. Check nutrition rules
 
     // For now, create a basic log entry
-    const { data, error } = await this.supabase
+    const result = await this.supabase
       .from('user_food_logs')
       .insert({
         user_id: input.userId,
@@ -83,15 +86,17 @@ export class FoodLogsService {
       )
       .single();
 
-    if (error) throw error;
-    return data;
+    if (result.error || !result.data) {
+      throw result.error || new Error('Failed to log food');
+    }
+    return result.data as FoodLogWithRelations;
   }
 
   async findAll(options?: {
     userId?: string;
     startDate?: Date;
     endDate?: Date;
-  }) {
+  }): Promise<FoodLogWithRelations[]> {
     let query = this.supabase
       .from('user_food_logs')
       .select(
@@ -116,14 +121,17 @@ export class FoodLogsService {
       query = query.lte('created_at', options.endDate.toISOString());
     }
 
-    const { data, error } = await query;
+    const result = await query;
 
-    if (error) throw error;
-    return data;
+    if (result.error) throw result.error;
+    return (result.data || []) as FoodLogWithRelations[];
   }
 
-  async findByUser(userId: string, limit = 50) {
-    const { data, error } = await this.supabase
+  async findByUser(
+    userId: string,
+    limit = 50,
+  ): Promise<FoodLogWithRelations[]> {
+    const result = await this.supabase
       .from('user_food_logs')
       .select(
         `
@@ -136,12 +144,12 @@ export class FoodLogsService {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
-    return data;
+    if (result.error) throw result.error;
+    return (result.data || []) as FoodLogWithRelations[];
   }
 
-  async findOne(id: string) {
-    const { data: log, error } = await this.supabase
+  async findOne(id: string): Promise<FoodLogWithRelations> {
+    const result = await this.supabase
       .from('user_food_logs')
       .select(
         `
@@ -154,14 +162,17 @@ export class FoodLogsService {
       .eq('id', id)
       .single();
 
-    if (error || !log) {
+    if (result.error || !result.data) {
       throw new NotFoundException(`Food log with ID ${id} not found`);
     }
 
-    return log;
+    return result.data as FoodLogWithRelations;
   }
 
-  async update(id: string, updateDto: UpdateFoodLogDto) {
+  async update(
+    id: string,
+    updateDto: UpdateFoodLogDto,
+  ): Promise<FoodLogWithRelations> {
     await this.findOne(id);
 
     const updateData: Record<string, unknown> = {};
@@ -174,7 +185,7 @@ export class FoodLogsService {
       updateData.food_item_id = updateDto.foodItemId;
     if (updateDto.ruleId !== undefined) updateData.rule_id = updateDto.ruleId;
 
-    const { data, error } = await this.supabase
+    const result = await this.supabase
       .from('user_food_logs')
       .update(updateData)
       .eq('id', id)
@@ -188,39 +199,45 @@ export class FoodLogsService {
       )
       .single();
 
-    if (error) throw error;
-    return data;
+    if (result.error || !result.data) {
+      throw result.error || new Error('Failed to update food log');
+    }
+    return result.data as FoodLogWithRelations;
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<FoodLogWithRelations> {
     await this.findOne(id);
 
-    const { data, error } = await this.supabase
+    const result = await this.supabase
       .from('user_food_logs')
       .delete()
       .eq('id', id)
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    if (result.error || !result.data) {
+      throw result.error || new Error('Failed to delete food log');
+    }
+    return result.data as FoodLogWithRelations;
   }
 
-  async getDailySummary(userId: string, date: Date) {
+  async getDailySummary(userId: string, date: Date): Promise<DailySummary> {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
 
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const { data: logs, error } = await this.supabase
+    const result = await this.supabase
       .from('user_food_logs')
       .select('*, food_items(*, food_nutrients(*))')
       .eq('user_id', userId)
       .gte('created_at', startOfDay.toISOString())
       .lte('created_at', endOfDay.toISOString());
 
-    if (error) throw error;
+    if (result.error) throw result.error;
+
+    const typedLogs = (result.data || []) as FoodLogWithRelations[];
 
     // Calculate totals from nutrients
     const totals = {
@@ -234,12 +251,13 @@ export class FoodLogsService {
       cholesterol: 0,
     };
 
-    for (const log of logs || []) {
+    for (const log of typedLogs) {
       if (log.nutrients && typeof log.nutrients === 'object') {
-        const nutrients = log.nutrients as Record<string, number>;
-        for (const key of Object.keys(totals)) {
-          if (nutrients[key]) {
-            totals[key as keyof typeof totals] += Number(nutrients[key]) || 0;
+        const nutrients = log.nutrients;
+        for (const key of Object.keys(totals) as Array<keyof typeof totals>) {
+          const value = nutrients[key];
+          if (typeof value === 'number') {
+            totals[key] += value;
           }
         }
       }
@@ -247,17 +265,20 @@ export class FoodLogsService {
 
     return {
       date,
-      logsCount: logs?.length || 0,
-      logs,
+      logsCount: typedLogs.length,
+      logs: typedLogs,
       totals,
     };
   }
 
-  async getWeeklySummary(userId: string, endDate: Date = new Date()) {
+  async getWeeklySummary(
+    userId: string,
+    endDate: Date = new Date(),
+  ): Promise<WeeklySummary> {
     const startDate = new Date(endDate);
     startDate.setDate(startDate.getDate() - 7);
 
-    const { data: logs, error } = await this.supabase
+    const result = await this.supabase
       .from('user_food_logs')
       .select('*, food_items(*, food_nutrients(*))')
       .eq('user_id', userId)
@@ -265,11 +286,13 @@ export class FoodLogsService {
       .lte('created_at', endDate.toISOString())
       .order('created_at', { ascending: true });
 
-    if (error) throw error;
+    if (result.error) throw result.error;
+
+    const typedLogs = (result.data || []) as FoodLogWithRelations[];
 
     // Group by day
-    const dailyData: Record<string, (typeof logs)[number][]> = {};
-    for (const log of logs || []) {
+    const dailyData: Record<string, FoodLogWithRelations[]> = {};
+    for (const log of typedLogs) {
       const dateKey = new Date(log.created_at).toISOString().split('T')[0];
       if (!dailyData[dateKey]) {
         dailyData[dateKey] = [];
@@ -280,7 +303,7 @@ export class FoodLogsService {
     return {
       startDate,
       endDate,
-      totalLogs: logs?.length || 0,
+      totalLogs: typedLogs.length,
       dailyData,
     };
   }

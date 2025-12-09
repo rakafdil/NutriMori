@@ -1,7 +1,7 @@
 import {
-    ConflictException,
-    Injectable,
-    NotFoundException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase';
 import { CreateUserDto, UpdateUserDto } from './dto';
@@ -79,15 +79,15 @@ export class UsersService {
     return user;
   }
 
-  async findByUsername(username: string) {
+  async findByEmail(email: string) {
     const { data: user, error } = await this.supabase
       .from('users')
       .select('*, user_preferences(*)')
-      .eq('username', username)
+      .eq('email', email)
       .single();
 
     if (error || !user) {
-      throw new NotFoundException(`User with username ${username} not found`);
+      throw new NotFoundException(`User with email ${email} not found`);
     }
 
     return user;

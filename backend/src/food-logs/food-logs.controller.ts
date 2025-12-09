@@ -1,13 +1,13 @@
 import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    ParseUUIDPipe,
-    Patch,
-    Post,
-    Query,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
 } from '@nestjs/common';
 import { CreateFoodLogDto, LogFoodInputDto, UpdateFoodLogDto } from './dto';
 import { FoodLogsService } from './food-logs.service';
@@ -44,7 +44,10 @@ export class FoodLogsController {
     @Param('userId', ParseUUIDPipe) userId: string,
     @Query('limit') limit?: string,
   ) {
-    return this.foodLogsService.findByUser(userId, limit ? parseInt(limit) : 50);
+    return this.foodLogsService.findByUser(
+      userId,
+      limit ? parseInt(limit) : 50,
+    );
   }
 
   @Get('user/:userId/daily')
