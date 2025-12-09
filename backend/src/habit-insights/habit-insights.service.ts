@@ -5,8 +5,8 @@ import {
     GetHabitInsightDto,
     HabitInsightResponseDto,
     HabitPatternDto,
-    NutrientTrendDto,
     MealTimingPatternDto,
+    NutrientTrendDto,
     PeriodType,
 } from './dto';
 
@@ -40,14 +40,46 @@ export class HabitInsightsService {
         // Calculate date range based on period
         const { startDate, endDate } = this.calculateDateRange(dto);
 
-        // Fetch food logs for the period
-        const { data: foodLogs, error: logsError } = await this.supabase
-            .from('user_food_logs')
+        // Fetch food logs with items and nutrients
+        const { data: rawLogs, error: logsError } = await this.supabase
+            .from('food_logs')
             .select(
                 `
-                *,
-                food_items(*),
-                nutrition_rules(*)
+                log_id,
+                user_id,
+                raw_text,
+                meal_type,
+                created_at,
+                parsed_by_llm,
+                food_log_items (
+                    item_id,
+                    detected_name,
+                    food_id,
+                    confidence_score,
+                    qty,
+                    unit,
+                    gram_weight,
+                    food_items (
+                        id,
+                        name,
+                        description,
+                        brand,
+                        serving_size,
+                        food_nutrients (
+                            calories,
+                            protein,
+                            carbs,
+                            fat,
+                            sugar,
+                            sodium,
+                            fiber,
+                            cholesterol
+                        ),
+                        food_categories (
+                            category
+                        )
+                    )
+                )
             `,
             )
             .eq('user_id', dto.userId)
@@ -57,11 +89,91 @@ export class HabitInsightsService {
 
         if (logsError) throw logsError;
 
-        if (!foodLogs || foodLogs.length === 0) {
+        if (!rawLogs || rawLogs.length === 0) {
             throw new NotFoundException(
                 `No food logs found for user ${dto.userId} in the specified period`,
             );
         }
+
+        // Transform and aggregate nutrients per log
+        const foodLogs = rawLogs.map(log => {
+            const items = Array.isArray(log.food_log_items) ? log.food_log_items : [];
+            
+            // Aggregate nutrients from all items in this log
+            const nutrients = items.reduce((acc, item) => {
+                const foodItem = Array.isArray(item.food_items) ? item.food_items[0] : item.food_items;
+                if (!foodItem) {
+                    return acc;
+                }
+
+                const nutrientArray = Array.isArray(foodItem.food_nutrients) 
+                    ? foodItem.food_nutrients 
+                    : [];
+                const nutrientData = nutrientArray[0];
+                
+                if (!nutrientData) {
+                    return acc;
+                }
+
+                const servingSize = foodItem.serving_size || 100;
+                const gramWeight = item.gram_weight || 0;
+                const multiplier = gramWeight / servingSize;
+
+                return {
+                    calories: (acc.calories || 0) + (nutrientData.calories || 0) * multiplier,
+                    protein: (acc.protein || 0) + (nutrientData.protein || 0) * multiplier,
+                    carbs: (acc.carbs || 0) + (nutrientData.carbs || 0) * multiplier,
+                    fat: (acc.fat || 0) + (nutrientData.fat || 0) * multiplier,
+                    sugar: (acc.sugar || 0) + (nutrientData.sugar || 0) * multiplier,
+                    sodium: (acc.sodium || 0) + (nutrientData.sodium || 0) * multiplier,
+                    fiber: (acc.fiber || 0) + (nutrientData.fiber || 0) * multiplier,
+                    cholesterol: (acc.cholesterol || 0) + (nutrientData.cholesterol || 0) * multiplier,
+                };
+            }, {} as any);
+
+            // Extract categories
+            const categories = items
+                .flatMap(item => {
+                    const foodItem = Array.isArray(item.food_items) ? item.food_items[0] : item.food_items;
+                    const cats = Array.isArray(foodItem?.food_categories) 
+                        ? foodItem.food_categories 
+                        : [];
+                    return cats;
+                })
+                .map(cat => cat.category)
+                .filter(Boolean);
+
+            return {
+                id: log.log_id,
+                log_id: log.log_id,
+                user_id: log.user_id,
+                text: log.raw_text,
+                raw_text: log.raw_text,
+                normalized_text: log.raw_text, // Use raw_text as normalized_text for now
+                meal_type: log.meal_type,
+                created_at: log.created_at,
+                parsed_by_llm: log.parsed_by_llm,
+                nutrients,
+                items: items.map(item => {
+                    const foodItem = Array.isArray(item.food_items) ? item.food_items[0] : item.food_items;
+                    return {
+                        item_id: item.item_id,
+                        detected_name: item.detected_name,
+                        food_id: item.food_id,
+                        confidence_score: item.confidence_score,
+                        qty: item.qty,
+                        unit: item.unit,
+                        gram_weight: item.gram_weight,
+                        food_name: foodItem?.name,
+                        brand: foodItem?.brand,
+                    };
+                }),
+                categories: [...new Set(categories)],
+                food_items: items
+                    .map(item => Array.isArray(item.food_items) ? item.food_items[0] : item.food_items)
+                    .filter(Boolean),
+            };
+        });
 
         // Analyze local data
         const analysis = this.analyzeLocalData(foodLogs, user);
@@ -273,8 +385,12 @@ export class HabitInsightsService {
         sortedDates.forEach((date) => {
             const logs = logsByDate.get(date)!;
             const hasVegetable = logs.some((log) => {
-                const text = (log.text || log.normalized_text || '').toLowerCase();
-                return vegetableKeywords.some((keyword) => text.includes(keyword));
+                const text = (log.raw_text || '').toLowerCase();
+                const hasVegCategory = log.categories?.some((cat: string) => 
+                    cat.toLowerCase().includes('vegetable') || cat.toLowerCase().includes('sayur')
+                );
+                const hasVegKeyword = vegetableKeywords.some((keyword) => text.includes(keyword));
+                return hasVegCategory || hasVegKeyword;
             });
 
             if (hasVegetable) {
@@ -348,8 +464,10 @@ export class HabitInsightsService {
         });
 
         const weekendSugarLogs = weekendLogs.filter((log) => {
-            const text = (log.text || log.normalized_text || '').toLowerCase();
-            return sugarKeywords.some((keyword) => text.includes(keyword));
+            const text = (log.raw_text || '').toLowerCase();
+            const hasHighSugar = log.nutrients?.sugar && log.nutrients.sugar > 25; // More than 25g sugar
+            const hasSugarKeyword = sugarKeywords.some((keyword) => text.includes(keyword));
+            return hasHighSugar || hasSugarKeyword;
         });
 
         const sugarPercentage = (weekendSugarLogs.length / weekendLogs.length) * 100;
@@ -381,12 +499,14 @@ export class HabitInsightsService {
             };
 
             const logsData = foodLogs.map((log) => ({
-                id: log.id,
-                text: log.text || log.normalized_text,
-                normalized_text: log.normalized_text,
+                id: log.log_id,
+                text: log.raw_text,
+                raw_text: log.raw_text,
+                meal_type: log.meal_type,
                 nutrients: log.nutrients,
                 created_at: log.created_at,
-                food_item_id: log.food_item_id,
+                items: log.items,
+                categories: log.categories,
             }));
 
             const response = await fetch(`${this.mlApiUrl}/analyze-habits`, {
