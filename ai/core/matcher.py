@@ -2,27 +2,17 @@ import pandas as pd
 import numpy as np
 import faiss
 from pathlib import Path
-import os
 from sentence_transformers import SentenceTransformer
 
 class FoodMatcher:
     def __init__(self):
-        # DETEKSI OTOMATIS PATH - Updated for Windows
-        current_dir = Path(__file__).parent.parent
-        data_dir = current_dir / "data"
-        
-        if data_dir.exists():
-            ROOT = data_dir
-        elif os.path.exists("/content/NutriMori/ai/data"):
-            ROOT = Path("/content/NutriMori/ai/data")
-        else:
-            ROOT = Path("/content/ai/data")
+        # Path relatif: ai/core/ -> ai/ -> ai/data
+        BASE_DIR = Path(__file__).resolve().parent.parent
+        DATA_DIR = BASE_DIR / "data"
 
-        print(f"Matcher membaca data dari: {ROOT}")
-
-        self.df = pd.read_parquet(ROOT / "data pangan bersih.parquet")
-        self.emb = np.load(ROOT / "build_embeddings.npy")
-        self.index = faiss.read_index(str(ROOT / "build_index.faiss"))
+        self.df = pd.read_parquet(DATA_DIR / "data pangan bersih.parquet")
+        self.emb = np.load(DATA_DIR / "build_embeddings.npy")
+        self.index = faiss.read_index(str(DATA_DIR / "build_index.faiss"))
 
         self.model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 
@@ -33,6 +23,7 @@ class FoodMatcher:
         q_emb = self.embed(text).astype("float32").reshape(1, -1)
         faiss.normalize_L2(q_emb)
         D, I = self.index.search(q_emb, k)
+        
         results = []
         for idx, sim in zip(I[0], D[0]):
             if idx == -1: continue
@@ -48,11 +39,13 @@ class FoodMatcher:
     def match_with_llm_candidates(self, candidates, top_final=5):
         aggregated = []
         seen = set()
+        
         for c in candidates:
             res = self._search_single(c, k=3)
             for item in res:
                 if item["food_id"] not in seen:
                     aggregated.append(item)
                     seen.add(item["food_id"])
+                    
         aggregated = sorted(aggregated, key=lambda x: x["similarity"], reverse=True)
         return aggregated[:top_final]
