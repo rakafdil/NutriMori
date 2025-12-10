@@ -10,8 +10,17 @@ import { validatePassword } from "@/utils/passwordValidator";
 
 class AuthService {
   // Login user
+  // Login user
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
+      // Client-side email validation
+      if (!this.validateEmail(credentials.email)) {
+        return {
+          success: false,
+          message: "Alamat email tidak valid.",
+        };
+      }
+
       const response = await fetch(getApiUrl(API_CONFIG.ENDPOINTS.AUTH.LOGIN), {
         method: "POST",
         headers: {
@@ -21,10 +30,17 @@ class AuthService {
         body: JSON.stringify(credentials),
       });
 
-      const data: AuthResponse = await response.json();
+      // Try to parse JSON body (server may provide an explanatory message)
+      let data: AuthResponse | any = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
       console.log("Login response data:", data);
 
-      if (response.ok && data.data) {
+      if (response.ok && data?.data) {
         // Save tokens and user data
         if (data.data.access_token) {
           this.setAuthToken(data.data.access_token);
@@ -33,26 +49,66 @@ class AuthService {
           this.setRefreshToken(data.data.refresh_token);
         }
         this.setUserData(data.data.user);
+        return data;
       }
 
-      return data;
-    } catch (error) {
-      console.error("Login error:", error);
+      // Map common server responses to user-friendly messages
+      let message =
+        (data && (data.message || data.error)) ||
+        "Login gagal. Periksa email dan kata sandi Anda.";
+
+      if (response.status === 401) {
+        message = "Email atau kata sandi salah.";
+      } else if (response.status === 400) {
+        if (typeof message === "string") {
+          const m = message.toLowerCase();
+          if (m.includes("email")) message = "Alamat email tidak valid.";
+          else if (m.includes("password")) message = "Kata sandi tidak valid.";
+        }
+      } else if (response.status === 429) {
+        message = "Terlalu banyak percobaan. Coba lagi nanti.";
+      } else if (response.status >= 500) {
+        message = "Terjadi kesalahan di server. Silakan coba lagi nanti.";
+      }
+
       return {
         success: false,
-        message: "Network error. Please check your connection.",
+        message,
+      };
+    } catch (error: any) {
+      console.error("Login error:", error);
+
+      // Network errors (fetch throws TypeError on network failure in browsers)
+      if (error instanceof TypeError) {
+        return {
+          success: false,
+          message: "Kesalahan jaringan. Periksa koneksi Anda.",
+        };
+      }
+
+      return {
+        success: false,
+        message: error?.message || "Terjadi kesalahan. Silakan coba lagi.",
       };
     }
   }
-
+  // Signup new user
   // Signup new user
   async signup(credentials: SignupCredentials): Promise<AuthResponse> {
     try {
+      // Client-side email validation
+      if (!this.validateEmail(credentials.email)) {
+        return {
+          success: false,
+          message: "Invalid email address.",
+        };
+      }
+
       // Validate passwords match
       if (credentials.password !== credentials.confirmPassword) {
         return {
           success: false,
-          message: "Passwords do not match",
+          message: "Passwords do not match.",
         };
       }
 
@@ -61,7 +117,7 @@ class AuthService {
         return {
           success: false,
           message:
-            "Password must be at least 8 characters with 1 uppercase, 1 number, and 1 special character",
+            "Password must be at least 8 characters with 1 uppercase, 1 number, and 1 special character.",
         };
       }
 
@@ -81,10 +137,18 @@ class AuthService {
         }
       );
 
-      const data: AuthResponse = await response.json();
+      // Attempt to parse JSON body (server may return helpful messages)
+      let data: AuthResponse | any = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
 
-      if (response.ok && data.data) {
-        // Save tokens and user data
+      console.log("Signup response data:", data);
+
+      // Success path
+      if (response.ok && data?.data) {
         if (data.data.access_token) {
           this.setAuthToken(data.data.access_token);
         }
@@ -92,16 +156,66 @@ class AuthService {
           this.setRefreshToken(data.data.refresh_token);
         }
         this.setUserData(data.data.user);
+        return data;
       }
 
-      return data;
-    } catch (error) {
-      console.error("Signup error:", error);
+      // Map common server responses to user-friendly messages
+      let message =
+        (data && (data.message || data.error)) ||
+        "Signup failed. Please check your input and try again.";
+
+      if (response.status === 409) {
+        message = "This email is already registered. Try logging in instead.";
+      } else if (response.status === 400) {
+        // If server message mentions email/password, make it clear
+        if (typeof message === "string") {
+          const m = message.toLowerCase();
+          if (m.includes("email")) message = "Invalid email address.";
+          else if (m.includes("password"))
+            message = "Password does not meet requirements.";
+        }
+      } else if (response.status === 422 && data?.errors) {
+        // Validation errors object -> join into one message
+        const errs = data.errors;
+        const joined = Object.values(errs)
+          .flat()
+          .map((v: any) => (typeof v === "string" ? v : JSON.stringify(v)))
+          .join(" ");
+        if (joined) message = joined;
+      } else if (response.status >= 500) {
+        message = "Server error. Please try again later.";
+      }
+
       return {
         success: false,
-        message: "Network error. Please check your connection.",
+        message,
+      };
+    } catch (error: any) {
+      console.error("Signup error:", error);
+
+      // Network errors (fetch throws TypeError on network failure in browsers)
+      if (error instanceof TypeError) {
+        return {
+          success: false,
+          message: "Network error. Please check your connection.",
+        };
+      }
+
+      return {
+        success: false,
+        message:
+          error?.message || "An unexpected error occurred. Please try again.",
       };
     }
+  }
+
+  // Add these helper methods inside the AuthService class:
+
+  private validateEmail(email: string): boolean {
+    if (!email) return false;
+    // Simple but practical email regex
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    return re.test(email);
   }
 
   // Refresh access token

@@ -7,6 +7,7 @@ export class UpdateUserPreferenceDto {
   @IsString({ each: true })
   allergies?: string[];
 
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   goals?: string[];

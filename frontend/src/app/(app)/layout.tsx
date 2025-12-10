@@ -12,44 +12,63 @@ export default function AppRouteLayout({ children }: { children: ReactNode }) {
   const checkPreferences = async () => {
     try {
       const prefs = await userService.checkPreference();
-      if (prefs.isFillingPreferences) {
-        return prefs.isFillingPreferences;
-      }
+      return prefs ?? null;
     } catch (err) {
       console.error("Profile error:", err);
+      return null;
     }
   };
 
   useEffect(() => {
     const checkAuth = async () => {
-      const isAuthenticated = authService.isAuthenticated();
-
-      if (!isAuthenticated) {
-        router.push("/auth");
-      } else {
-        // Optionally verify token validity
-        const isValid = await authService.verifyToken();
-        if (!isValid) {
-          router.push("/auth");
+      try {
+        // Quick presence check first (avoid API call if no token)
+        if (!authService.isAuthenticated()) {
+          router.replace("/auth");
+          setIsChecking(false);
+          return;
         }
+
+        // Verify token validity (this may refresh token internally)
+        const tokenValid = await authService.verifyToken();
+        if (!tokenValid) {
+          router.replace("/auth");
+          setIsChecking(false);
+          return;
+        }
+
+        // Now check preferences status
         const prefs = await checkPreferences();
 
-        const filled = Array.isArray(prefs)
-          ? prefs.some(
-              (p: any) =>
-                p?.isFillingPreferences === true ||
-                p?.isFillingPreferences === "True"
-            )
-          : prefs === true || prefs === "True";
-
-        if (filled) {
-          router.push("/dashboard");
+        // Determine "filled" conservatively:
+        let filled = false;
+        if (Array.isArray(prefs)) {
+          filled = prefs.some(
+            (p: any) =>
+              p?.isFillingPreferences === true ||
+              p?.isFillingPreferences === "True"
+          );
+        } else if (prefs && typeof prefs === "object") {
+          filled =
+            prefs.isFillingPreferences === true ||
+            prefs.isFillingPreferences === "True";
         } else {
-          router.push("/onboarding");
+          // If the API returned a plain boolean or truthy value
+          filled = prefs === true || prefs === "True";
         }
-      }
 
-      setIsChecking(false);
+        // Single replace to chosen route (replace avoids polluting history)
+        if (filled) {
+          router.replace("/dashboard");
+        } else {
+          router.replace("/onboarding");
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        router.replace("/auth");
+      } finally {
+        setIsChecking(false);
+      }
     };
 
     checkAuth();

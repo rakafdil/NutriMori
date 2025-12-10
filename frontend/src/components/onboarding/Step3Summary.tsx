@@ -1,7 +1,8 @@
 "use client";
 import React from "react";
 import { Leaf, User, Target, Heart } from "lucide-react";
-import { ProfileData, PreferencesData } from "./OnboardingContent";
+import { PreferencesData } from "@/hooks/usePreferences";
+import { ProfileData } from "@/hooks/useProfile";
 
 interface Step3Props {
   profileData: ProfileData;

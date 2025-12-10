@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -32,6 +32,7 @@ const AuthPage: React.FC = () => {
     confirmPassword: "",
   });
   const [passwordFocused, setPasswordFocused] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   const checkPreferences = async () => {
     try {
@@ -76,14 +77,22 @@ const AuthPage: React.FC = () => {
         });
       }
 
-      if (response.success) {
-        const prefs = await checkPreferences();
+      // If service returned an error message, show it in UI
+      if (!response || response.success === false) {
+        setError(
+          response?.message || "An unexpected error occurred. Please try again."
+        );
+        return;
+      }
 
-        if (prefs.isFillingPreferences) {
-          router.push("/dashboard");
-        } else {
-          router.push("/onboarding");
-        }
+      // Success branch
+      setError("");
+      const prefs = await checkPreferences();
+
+      if (prefs?.isFillingPreferences) {
+        router.push("/dashboard");
+      } else {
+        router.push("/onboarding");
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
@@ -101,6 +110,68 @@ const AuthPage: React.FC = () => {
     // Clear error when user starts typing
     if (error) setError("");
   };
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Quick presence check first (avoid API call if no token)
+        if (!authService.isAuthenticated()) {
+          router.replace("/auth");
+          setIsChecking(false);
+          return;
+        }
+
+        // Verify token validity (this may refresh token internally)
+        const tokenValid = await authService.verifyToken();
+        if (!tokenValid) {
+          router.replace("/auth");
+          setIsChecking(false);
+          return;
+        }
+
+        // Now check preferences status
+        const prefs = await checkPreferences();
+
+        // Determine "filled" conservatively:
+        let filled = false;
+        if (Array.isArray(prefs)) {
+          filled = prefs.some(
+            (p: any) =>
+              p?.isFillingPreferences === true ||
+              p?.isFillingPreferences === "True"
+          );
+        } else if (prefs && typeof prefs === "object") {
+          filled =
+            prefs.isFillingPreferences === true ||
+            prefs.isFillingPreferences === "True";
+        } else {
+          // If the API returned a plain boolean or truthy value
+          filled = prefs === true || prefs === "True";
+        }
+
+        // Single replace to chosen route (replace avoids polluting history)
+        if (filled) {
+          router.replace("/dashboard");
+        } else {
+          router.replace("/onboarding");
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        router.replace("/auth");
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-white dark:bg-gray-950 flex relative overflow-hidden transition-colors duration-500">

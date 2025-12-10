@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Activity, Plus, AlertCircle, Utensils, User } from "lucide-react";
-import { ProfileData, PreferencesData } from "./OnboardingContent";
+import { PreferencesData } from "@/hooks/usePreferences";
+import { ProfileData } from "@/hooks/useProfile";
 
 interface Step1Props {
   profileData: ProfileData;
