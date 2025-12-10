@@ -23,12 +23,13 @@ drop function if exists match_foods(vector(384), int);
 
 create or replace function match_foods(
     query_embedding vector(384),
-    match_count int default 5
+    match_count int default 5,
+    match_threshold float default 0.3
 )
 returns table (
-    food_id integer,
+    food_id int,
     nama text,
-    similarity double precision,
+    similarity float,
     nutrition_data jsonb
 )
 language plpgsql
@@ -38,9 +39,10 @@ begin
     select 
         fe.food_id,
         fe.nama,
-        (1 - (fe.embedding <=> query_embedding))::double precision as similarity,
+        (1 - (fe.embedding <=> query_embedding))::float AS similarity,
         fe.nutrition_data
     from food_embeddings fe
+    where (1 - (fe.embedding <=> query_embedding)) > match_threshold
     order by fe.embedding <=> query_embedding
     limit match_count;
 end;

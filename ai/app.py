@@ -4,58 +4,50 @@ import sys
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-import google.generativeai as genai
 
 # --- FIX 1: LOAD ENV DARI FOLDER ROOT ---
-# Kita naik satu level ke atas (..) untuk cari .env
 current_file = Path(__file__).resolve()
-project_root = current_file.parent # Folder NutriMori
+project_root = current_file.parent
 env_path = project_root / '.env'
-
-# Load explicit path
 load_dotenv(dotenv_path=env_path)
 
-# Cek apakah Key terbaca (Penting buat debugging)
+# --- FORCE SUPABASE MODE ON VERCEL ---
+IS_VERCEL = os.environ.get("VERCEL", "0") == "1"
+USE_SUPABASE = IS_VERCEL or os.environ.get("USE_SUPABASE", "0") == "1"
+
+# Only import genai if needed (lazy load)
 API_KEY = os.getenv("GOOGLE_API_KEY")
-if not API_KEY:
-    print("❌ CRITICAL ERROR: API Key tidak ditemukan! Cek lokasi file .env")
-else:
+if API_KEY:
+    import google.generativeai as genai
     print(f"✅ API Key terdeteksi: {API_KEY[:5]}*******")
     genai.configure(api_key=API_KEY)
+else:
+    print("❌ CRITICAL ERROR: API Key tidak ditemukan!")
 
-# --- SETUP PATH MODULE ---
 sys.path.append(str(current_file.parent))
-
-# Import Core
-from core.nutrition import NutritionCalculator
-from core.llm_helper import generate_food_candidates
-from core.portion import portion_to_gram
-# NEW: import memory util
-from core.memory_utils import get_process_memory_mb
 
 app = Flask(__name__)
 CORS(app)
 
-# --- MODE DEPLOY: Gunakan Supabase untuk hemat RAM ---
-USE_SUPABASE = os.environ.get("USE_SUPABASE", "0") == "1"
+# --- LAZY INITIALIZATION ---
+matcher = None
+nutrition_calc = None
 
-print("⏳ Initializing AI components...")
-try:
-    # FoodMatcher sekarang auto-detect mode (Supabase vs Local)
-    from core.matcher import FoodMatcher
-    matcher = FoodMatcher()
-    
-    nutrition_calc = NutritionCalculator()
-    print("✅ AI components ready!")
-    # Log memory after init
-    try:
-        mem_mb = get_process_memory_mb()
-        print(f"🧠 Current process memory: {mem_mb:.1f} MB")
-    except Exception:
-        pass
-except Exception as e:
-    print(f"❌ Error initializing AI: {e}")
-    matcher = None
+def get_matcher():
+    global matcher
+    if matcher is None:
+        from core.matcher import FoodMatcher
+        matcher = FoodMatcher()
+    return matcher
+
+def get_nutrition_calc():
+    global nutrition_calc
+    if nutrition_calc is None:
+        from core.nutrition import NutritionCalculator
+        nutrition_calc = NutritionCalculator()
+    return nutrition_calc
+
+print(f"🚀 App ready (mode: {'supabase' if USE_SUPABASE else 'local'})")
 
 # --- ROUTES ---
 
@@ -67,10 +59,10 @@ def health_check():
         'mode': 'supabase' if USE_SUPABASE else 'local'
     })
 
-# NEW: debug endpoint to check current memory usage
 @app.route('/debug/memory', methods=['GET'])
 def debug_memory():
     try:
+        from core.memory_utils import get_process_memory_mb
         mem_mb = get_process_memory_mb()
         return jsonify({
             'memory_mb': round(mem_mb, 2),
@@ -92,27 +84,29 @@ def parse_food():
         
         print(f"\n📥 Request: {text} ({qty} {unit})")
 
+        # Lazy imports
+        from core.llm_helper import generate_food_candidates
+
         # 1. LLM Step
         candidates = generate_food_candidates(text)
         print(f"🤖 LLM Candidates: {candidates}")
         
-        # 2. Matching - sekarang FoodMatcher handle sendiri
-        match_results = matcher.match_with_llm_candidates(candidates, top_final=5)
+        # 2. Matching
+        match_results = get_matcher().match_with_llm_candidates(candidates, top_final=5)
         
         if not match_results:
             return jsonify({'success': False, 'message': 'No matching food found'}), 404
         
         # 3. Nutrition
-        nutrition = nutrition_calc.get_nutrition_smart(match_results, qty, unit)
+        nutrition = get_nutrition_calc().get_nutrition_smart(match_results, qty, unit)
         
-        # 4. Format Output Rapi
+        # 4. Format Output
         output_nutrisi = {
             "nama_makanan": nutrition.get('nama_pilihan', 'Unknown'),
             "porsi_display": f"{qty} {unit}",
             "berat_gram": round(nutrition.get('gram', 0), 1)
         }
         
-        # Ambil semua angka nutrisi
         exclude = ['nama_pilihan', 'gram', 'metode', 'nama', 'food_id']
         for k, v in nutrition.items():
             if k not in exclude:
@@ -123,7 +117,7 @@ def parse_food():
             'success': True,
             'input': {'text': text, 'quantity': qty, 'unit': unit},
             'candidates': candidates,
-            'matches': match_results[:2], # Tampilkan 2 teratas aja biar output ga kepanjangan
+            'matches': match_results[:2],
             'nutrition': output_nutrisi,
             'metadata': {
                 'logic': nutrition.get('metode'),

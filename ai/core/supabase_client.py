@@ -25,6 +25,26 @@ else:
     print("⚠️ Supabase credentials not found in .env")
 
 
+def search_foods_by_vector(embedding: list, top_k: int = 5, threshold: float = 0.3) -> list:
+    """Vector similarity search using pgvector."""
+    if not supabase:
+        return []
+    
+    try:
+        result = supabase.rpc(
+            'match_foods',
+            {
+                'query_embedding': embedding,
+                'match_count': top_k,
+                'match_threshold': threshold
+            }
+        ).execute()
+        return result.data or []
+    except Exception as e:
+        print(f"❌ Supabase vector search error: {e}")
+        return []
+
+
 def search_foods_by_text(query: str, top_k: int = 5) -> list:
     """Fallback: text search tanpa vector."""
     if not supabase:
