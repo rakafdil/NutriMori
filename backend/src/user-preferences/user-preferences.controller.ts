@@ -1,13 +1,17 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import {
-    Body,
-    Controller,
-    Delete,
-    Get,
-    Param,
-    ParseUUIDPipe,
-    Patch,
-    Post,
-    Put,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateUserPreferenceDto, UpdateUserPreferenceDto } from './dto';
 import { UserPreferencesService } from './user-preferences.service';
@@ -16,34 +20,27 @@ import { UserPreferencesService } from './user-preferences.service';
 export class UserPreferencesController {
   constructor(private readonly preferencesService: UserPreferencesService) {}
 
-  @Post()
-  create(@Body() createDto: CreateUserPreferenceDto) {
-    return this.preferencesService.create(createDto);
+  private getAccessToken(req: any): string {
+    return req.headers.authorization?.replace('Bearer ', '');
   }
 
-  @Get('user/:userId')
-  findByUserId(@Param('userId', ParseUUIDPipe) userId: string) {
-    return this.preferencesService.findByUserId(userId);
+  @Get()
+  findByUserId(@Req() req: any) {
+    return this.preferencesService.findByUserId(this.getAccessToken(req));
   }
 
-  @Patch('user/:userId')
-  update(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @Body() updateDto: UpdateUserPreferenceDto,
-  ) {
-    return this.preferencesService.update(userId, updateDto);
+  @Patch()
+  update(@Req() req: any, @Body() updateDto: UpdateUserPreferenceDto) {
+    return this.preferencesService.update(this.getAccessToken(req), updateDto);
   }
 
-  @Put('user/:userId')
-  upsert(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @Body() dto: UpdateUserPreferenceDto,
-  ) {
-    return this.preferencesService.upsert(userId, dto);
+  @Put()
+  upsert(@Req() req: any, @Body() dto: UpdateUserPreferenceDto) {
+    return this.preferencesService.upsert(this.getAccessToken(req), dto);
   }
 
-  @Delete('user/:userId')
-  remove(@Param('userId', ParseUUIDPipe) userId: string) {
-    return this.preferencesService.remove(userId);
+  @Delete()
+  remove(@Req() req: any) {
+    return this.preferencesService.remove(this.getAccessToken(req));
   }
 }

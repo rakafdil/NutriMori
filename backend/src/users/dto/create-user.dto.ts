@@ -25,7 +25,7 @@ export class CreateUserDto {
   })
   @IsOptional()
   @IsNumber()
-  @Min(50)
+  @Min(0)
   @Max(300)
   height_cm?: number;
 
@@ -35,7 +35,7 @@ export class CreateUserDto {
   })
   @IsOptional()
   @IsNumber()
-  @Min(20)
+  @Min(0)
   @Max(500)
   weight_kg?: number;
 }

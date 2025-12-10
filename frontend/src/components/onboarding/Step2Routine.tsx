@@ -1,26 +1,31 @@
 import React, { useState } from "react";
 import { Clock, Wallet, DollarSign } from "lucide-react";
-import { UserProfile } from "@/types";
+import { PreferencesData } from "./OnboardingContent";
 
 interface Step2Props {
-  profile: UserProfile;
-  setProfile: React.Dispatch<React.SetStateAction<UserProfile>>;
+  preferencesData: PreferencesData;
+  setPreferencesData: React.Dispatch<React.SetStateAction<PreferencesData>>;
 }
 
-export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
-  const [hasBreakfast, setHasBreakfast] = useState(!!profile.routine.breakfast);
-  const [hasLunch, setHasLunch] = useState(!!profile.routine.lunch);
-  const [hasDinner, setHasDinner] = useState(!!profile.routine.dinner);
+export const Step2Routine: React.FC<Step2Props> = ({
+  preferencesData,
+  setPreferencesData,
+}) => {
+  const [hasBreakfast, setHasBreakfast] = useState(
+    !!preferencesData.routine.breakfast
+  );
+  const [hasLunch, setHasLunch] = useState(!!preferencesData.routine.lunch);
+  const [hasDinner, setHasDinner] = useState(!!preferencesData.routine.dinner);
 
   const handleMealToggle = (
     meal: "breakfast" | "lunch" | "dinner",
     enabled: boolean
   ) => {
-    setProfile((prev) => ({
+    setPreferencesData((prev) => ({
       ...prev,
       routine: {
         ...prev.routine,
-        [meal]: enabled ? prev.routine[meal] || "07:00" : undefined,
+        [meal]: enabled ? prev.routine[meal] || "07:00" : "",
       },
     }));
 
@@ -33,7 +38,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
     meal: "breakfast" | "lunch" | "dinner",
     time: string
   ) => {
-    setProfile((prev) => ({
+    setPreferencesData((prev) => ({
       ...prev,
       routine: {
         ...prev.routine,
@@ -43,7 +48,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
   };
 
   const handleBudgetChange = (value: number) => {
-    setProfile((prev) => ({
+    setPreferencesData((prev) => ({
       ...prev,
       budget: value,
     }));
@@ -83,7 +88,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
               {hasBreakfast && (
                 <input
                   type="time"
-                  value={profile.routine.breakfast || "07:00"}
+                  value={preferencesData.routine.breakfast || "07:00"}
                   onChange={(e) =>
                     handleTimeChange("breakfast", e.target.value)
                   }
@@ -108,7 +113,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
               {hasLunch && (
                 <input
                   type="time"
-                  value={profile.routine.lunch || "12:00"}
+                  value={preferencesData.routine.lunch || "12:00"}
                   onChange={(e) => handleTimeChange("lunch", e.target.value)}
                   className="flex-1 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
                 />
@@ -131,7 +136,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
               {hasDinner && (
                 <input
                   type="time"
-                  value={profile.routine.dinner || "19:00"}
+                  value={preferencesData.routine.dinner || "19:00"}
                   onChange={(e) => handleTimeChange("dinner", e.target.value)}
                   className="flex-1 p-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
                 />
@@ -149,7 +154,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                Rp {(profile.budget || 50000).toLocaleString("id-ID")}
+                Rp {(preferencesData.budget || 50000).toLocaleString("id-ID")}
               </span>
               <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                 <DollarSign className="w-3 h-3" />
@@ -161,7 +166,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
               min="10000"
               max="200000"
               step="5000"
-              value={profile.budget || 50000}
+              value={preferencesData.budget || 50000}
               onChange={(e) => handleBudgetChange(Number(e.target.value))}
               className="w-full accent-emerald-600 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
             />
@@ -177,7 +182,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
             <button
               onClick={() => handleBudgetChange(25000)}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                profile.budget === 25000
+                preferencesData.budget === 25000
                   ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-2 border-emerald-500"
                   : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
@@ -187,7 +192,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
             <button
               onClick={() => handleBudgetChange(75000)}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                profile.budget === 75000
+                preferencesData.budget === 75000
                   ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-2 border-emerald-500"
                   : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}
@@ -197,7 +202,7 @@ export const Step2Routine: React.FC<Step2Props> = ({ profile, setProfile }) => {
             <button
               onClick={() => handleBudgetChange(150000)}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                profile.budget === 150000
+                preferencesData.budget === 150000
                   ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-2 border-emerald-500"
                   : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
               }`}

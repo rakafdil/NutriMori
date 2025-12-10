@@ -17,6 +17,7 @@ class AuthService {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(credentials),
       });
 
@@ -76,6 +77,7 @@ class AuthService {
             email: credentials.email,
             password: credentials.password,
           }),
+          credentials: "include",
         }
       );
 

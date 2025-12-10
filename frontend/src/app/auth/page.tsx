@@ -17,6 +17,7 @@ import Image from "next/image";
 import { authService } from "@/services/auth.service";
 import PasswordStrengthIndicator from "@/components/auth/PasswordStrengthIndicator";
 import { validatePassword } from "@/utils/passwordValidator";
+import { userService } from "@/services/user.service";
 
 const AuthPage: React.FC = () => {
   const router = useRouter();
@@ -31,6 +32,18 @@ const AuthPage: React.FC = () => {
     confirmPassword: "",
   });
   const [passwordFocused, setPasswordFocused] = useState(false);
+
+  const checkPreferences = async () => {
+    try {
+      const prefs = await userService.checkPreference();
+      if (prefs) {
+        return prefs;
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      console.error("Profile error:", err);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,10 +77,13 @@ const AuthPage: React.FC = () => {
       }
 
       if (response.success) {
-        // Redirect to onboarding or dashboard
-        router.push("/onboarding");
-      } else {
-        setError(response.message);
+        const prefs = await checkPreferences();
+
+        if (prefs.isFillingPreferences) {
+          router.push("/dashboard");
+        } else {
+          router.push("/onboarding");
+        }
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");

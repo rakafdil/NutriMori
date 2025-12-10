@@ -1,51 +1,48 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
-import { CreateUserDto, UpdateUserDto } from './dto';
+import { Body, Controller, Delete, Get, Patch, Req } from '@nestjs/common';
+import express from 'express';
+import { UpdateUserDto } from './dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  private extractToken(req: express.Request): string {
+    const authHeader = req.headers.authorization;
+    return authHeader?.replace('Bearer ', '') || '';
   }
 
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
+  @Get('check-preference')
+  checkFillPreferences(@Req() req: express.Request) {
+    return this.usersService.checkFillPreferences(this.extractToken(req));
   }
 
-  @Get('email')
-  findByEmail(@Query('email') email: string) {
-    return this.usersService.findByEmail(email);
+  // Mengambil profile diri sendiri
+  // GET /users/me
+  @Get('me')
+  getProfile(@Req() req: express.Request) {
+    return this.usersService.getProfile(this.extractToken(req));
   }
 
-  @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.findOne(id);
+  // Update profile diri sendiri
+  // PATCH /users/me
+  @Patch('me')
+  update(@Req() req: express.Request, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.updateProfile(
+      this.extractToken(req),
+      updateUserDto,
+    );
   }
 
-  @Patch(':id')
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
-    return this.usersService.update(id, updateUserDto);
+  // Hapus akun diri sendiri
+  // DELETE /users/me
+  @Delete('me')
+  remove(@Req() req: express.Request) {
+    return this.usersService.removeProfile(this.extractToken(req));
   }
 
-  @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.remove(id);
+  @Get('me/logs')
+  getFoodLogs(@Req() req: express.Request) {
+    return this.usersService.getFoodLogs(this.extractToken(req));
   }
 }
