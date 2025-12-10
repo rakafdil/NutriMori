@@ -1,10 +1,7 @@
-import { IsString, IsOptional, IsEnum, IsUUID } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import * as types from '../types';
 
 export class LogFoodInputDto {
-  @IsUUID()
-  userId: string;
-
   @IsString()
   text: string;
 
