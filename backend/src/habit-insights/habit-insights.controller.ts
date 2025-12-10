@@ -1,13 +1,13 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
-    ApiTags,
+    ApiBearerAuth,
     ApiOperation,
     ApiResponse,
-    ApiBearerAuth,
+    ApiTags,
 } from '@nestjs/swagger';
-import { HabitInsightsService } from './habit-insights.service';
+import { GetUser, JwtAuthGuard } from '../auth';
 import { GetHabitInsightDto, HabitInsightResponseDto } from './dto';
-import { JwtAuthGuard } from '../auth/guards';
+import { HabitInsightsService } from './habit-insights.service';
 
 @ApiTags('habit-insights')
 @Controller('habit-insights')
@@ -18,19 +18,24 @@ export class HabitInsightsController {
 
     @Get()
     @ApiOperation({
-        summary: 'Get habit pattern insights for a user',
+        summary: 'Get habit pattern insights for authenticated user',
         description:
-            'Analyzes user eating patterns over specified period (weekly/monthly/yearly/overall) and provides AI-powered insights, recommendations, and health score.',
+            'Analyzes authenticated user eating patterns over specified period (weekly/monthly/yearly/overall) and provides AI-powered insights, recommendations, and health score. User ID is automatically extracted from JWT token.',
     })
     @ApiResponse({
         status: 200,
         description: 'Habit insights generated successfully',
         type: HabitInsightResponseDto,
     })
+    @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing token' })
     @ApiResponse({ status: 404, description: 'User or food logs not found' })
     async getHabitInsight(
+        @GetUser('id') userId: string,
         @Query() query: GetHabitInsightDto,
     ): Promise<HabitInsightResponseDto> {
-        return this.habitInsightsService.generateInsight(query);
+        return this.habitInsightsService.generateInsight({
+            ...query,
+            userId,
+        });
     }
 }
