@@ -8,7 +8,7 @@
 # =============================================================================
 
 # Configuration
-BASE_URL="${BASE_URL:-http://localhost:3000}"
+BASE_URL="${BASE_URL:-https://nutrimori.vercel.app/api}"
 TOKEN="${1:-}"
 DAYS="${2:-7}"
 
