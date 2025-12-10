@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional } from 'class-validator';
 
 export enum PeriodType {
     WEEKLY = 'weekly',
@@ -9,13 +9,6 @@ export enum PeriodType {
 }
 
 export class GetHabitInsightDto {
-    @ApiProperty({
-        description: 'User ID',
-        example: '123e4567-e89b-12d3-a456-426614174000',
-    })
-    @IsUUID()
-    userId: string;
-
     @ApiProperty({
         description: 'Analysis period type',
         enum: PeriodType,
