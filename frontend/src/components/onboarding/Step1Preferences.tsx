@@ -1,17 +1,21 @@
 import React, { useState } from "react";
 import { Activity, Plus, AlertCircle, Utensils, User } from "lucide-react";
-import { UserProfile } from "@/types";
+import { ProfileData, PreferencesData } from "./OnboardingContent";
 
 interface Step1Props {
-  profile: UserProfile;
-  toggleSelection: (key: keyof UserProfile, value: string) => void;
-  setProfile: React.Dispatch<React.SetStateAction<UserProfile>>;
+  profileData: ProfileData;
+  preferencesData: PreferencesData;
+  setProfileData: React.Dispatch<React.SetStateAction<ProfileData>>;
+  setPreferencesData: React.Dispatch<React.SetStateAction<PreferencesData>>;
+  toggleSelection: (key: keyof PreferencesData, value: string) => void;
 }
 
 export const Step1Preferences: React.FC<Step1Props> = ({
-  profile,
+  profileData,
+  preferencesData,
+  setProfileData,
+  setPreferencesData,
   toggleSelection,
-  setProfile,
 }) => {
   const [customGoal, setCustomGoal] = useState("");
   const [customAllergy, setCustomAllergy] = useState("");
@@ -19,7 +23,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
   const [customMedical, setCustomMedical] = useState("");
 
   const handleAddCustom = (
-    key: keyof UserProfile,
+    key: keyof PreferencesData,
     value: string,
     setter: (value: string) => void
   ) => {
@@ -30,13 +34,22 @@ export const Step1Preferences: React.FC<Step1Props> = ({
   };
 
   const handleProfileChange = (
-    field: keyof UserProfile,
+    field: keyof ProfileData,
     value: string | number
   ) => {
-    setProfile((prev) => ({
+    setProfileData((prev) => ({
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleGoalsChange = (value: string) => {
+    setPreferencesData((prev) => {
+      if (prev.goals.includes(value)) {
+        return { ...prev, goals: prev.goals.filter((item) => item !== value) };
+      }
+      return { ...prev, goals: [...prev.goals, value] };
+    });
   };
 
   return (
@@ -62,11 +75,10 @@ export const Step1Preferences: React.FC<Step1Props> = ({
               </label>
               <input
                 type="text"
-                value={profile.username}
+                value={profileData.username}
                 onChange={(e) =>
                   handleProfileChange("username", e.target.value)
                 }
-                defaultValue={profile.name}
                 placeholder="johndoe"
                 className="w-full p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white"
               />
@@ -77,7 +89,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
               </label>
               <input
                 type="number"
-                value={profile.age || ""}
+                value={profileData.age || ""}
                 onChange={(e) =>
                   handleProfileChange("age", parseInt(e.target.value) || 0)
                 }
@@ -93,7 +105,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
               </label>
               <input
                 type="number"
-                value={profile.height || ""}
+                value={profileData.height || ""}
                 onChange={(e) =>
                   handleProfileChange("height", parseInt(e.target.value) || 0)
                 }
@@ -109,7 +121,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
               </label>
               <input
                 type="number"
-                value={profile.weight || ""}
+                value={profileData.weight || ""}
                 onChange={(e) =>
                   handleProfileChange("weight", parseInt(e.target.value) || 0)
                 }
@@ -130,24 +142,21 @@ export const Step1Preferences: React.FC<Step1Props> = ({
           </label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
             {[
-              ...new Set([
-                "Diet Seimbang",
-                "Bulking",
-                "Weight Loss",
-                "Better Sleep",
-                "More Energy",
-                "Muscle Gain",
-                "Improve Immunity",
-                "Better Digestion",
-                "Mental Clarity",
-                ...profile.goals,
-              ]),
+              "Diet Seimbang",
+              "Bulking",
+              "Weight Loss",
+              "Better Sleep",
+              "More Energy",
+              "Muscle Gain",
+              "Improve Immunity",
+              "Better Digestion",
+              "Mental Clarity",
             ].map((opt) => (
               <button
                 key={opt}
-                onClick={() => toggleSelection("goals", opt)}
+                onClick={() => handleGoalsChange(opt)}
                 className={`p-3 rounded-xl border text-sm font-medium transition-all text-left flex items-center gap-2 ${
-                  profile.goals.includes(opt)
+                  preferencesData.goals.includes(opt)
                     ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
                     : "border-gray-100 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
@@ -165,15 +174,19 @@ export const Step1Preferences: React.FC<Step1Props> = ({
               placeholder="Add custom goal..."
               className="flex-1 mx-2 px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white text-sm"
               onKeyPress={(e) => {
-                if (e.key === "Enter") {
-                  handleAddCustom("goals", customGoal, setCustomGoal);
+                if (e.key === "Enter" && customGoal.trim()) {
+                  handleGoalsChange(customGoal.trim());
+                  setCustomGoal("");
                 }
               }}
             />
             <button
-              onClick={() =>
-                handleAddCustom("goals", customGoal, setCustomGoal)
-              }
+              onClick={() => {
+                if (customGoal.trim()) {
+                  handleGoalsChange(customGoal.trim());
+                  setCustomGoal("");
+                }
+              }}
               className="px-4 mx-2 py-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-lg hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition"
             >
               <Plus className="w-4 h-4" />
@@ -202,14 +215,14 @@ export const Step1Preferences: React.FC<Step1Props> = ({
                 "Kidney Disease",
                 "Liver Disease",
                 "Osteoporosis",
-                ...(profile.medicalHistory || []),
+                ...preferencesData.medicalHistory,
               ]),
             ].map((opt) => (
               <button
                 key={opt}
                 onClick={() => toggleSelection("medicalHistory", opt)}
                 className={`p-3 rounded-xl border text-sm font-medium transition-all text-left ${
-                  profile.medicalHistory?.includes(opt)
+                  preferencesData.medicalHistory.includes(opt)
                     ? "border-orange-500 bg-orange-50 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
                     : "border-gray-100 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
@@ -225,7 +238,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
               value={customMedical}
               onChange={(e) => setCustomMedical(e.target.value)}
               placeholder="Add other medical condition..."
-              className="flex-1 px-4 mx-2  py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:text-white text-sm"
+              className="flex-1 px-4 mx-2 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 dark:text-white text-sm"
               onKeyPress={(e) => {
                 if (e.key === "Enter") {
                   handleAddCustom(
@@ -271,14 +284,14 @@ export const Step1Preferences: React.FC<Step1Props> = ({
                 "Sesame",
                 "Fish",
                 "Corn",
-                ...profile.allergies,
+                ...preferencesData.allergies,
               ]),
             ].map((opt) => (
               <button
                 key={opt}
                 onClick={() => toggleSelection("allergies", opt)}
                 className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                  profile.allergies.includes(opt)
+                  preferencesData.allergies.includes(opt)
                     ? "border-red-200 bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 dark:border-red-900"
                     : "border-gray-100 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
@@ -337,14 +350,14 @@ export const Step1Preferences: React.FC<Step1Props> = ({
                 "Western Food",
                 "Traditional",
                 "Street Food",
-                ...profile.preferences,
+                ...preferencesData.preferences,
               ]),
             ].map((opt) => (
               <button
                 key={opt}
                 onClick={() => toggleSelection("preferences", opt)}
                 className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                  profile.preferences.includes(opt)
+                  preferencesData.preferences.includes(opt)
                     ? "border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-900"
                     : "border-gray-100 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
@@ -360,7 +373,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
               value={customPreference}
               onChange={(e) => setCustomPreference(e.target.value)}
               placeholder="Add custom preference..."
-              className="flex-1 px-4 mx-2  py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
+              className="flex-1 px-4 mx-2 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white text-sm"
               onKeyPress={(e) => {
                 if (e.key === "Enter") {
                   handleAddCustom(

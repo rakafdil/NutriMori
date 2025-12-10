@@ -3,10 +3,22 @@ import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/index";
 import { authService } from "@/services/auth.service";
+import { userService } from "@/services/user.service";
 
 export default function AppRouteLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
+
+  const checkPreferences = async () => {
+    try {
+      const prefs = await userService.checkPreference();
+      if (prefs.isFillingPreferences) {
+        return prefs.isFillingPreferences;
+      }
+    } catch (err) {
+      console.error("Profile error:", err);
+    }
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -19,6 +31,21 @@ export default function AppRouteLayout({ children }: { children: ReactNode }) {
         const isValid = await authService.verifyToken();
         if (!isValid) {
           router.push("/auth");
+        }
+        const prefs = await checkPreferences();
+
+        const filled = Array.isArray(prefs)
+          ? prefs.some(
+              (p: any) =>
+                p?.isFillingPreferences === true ||
+                p?.isFillingPreferences === "True"
+            )
+          : prefs === true || prefs === "True";
+
+        if (filled) {
+          router.push("/dashboard");
+        } else {
+          router.push("/onboarding");
         }
       }
 

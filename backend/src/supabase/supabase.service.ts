@@ -5,16 +5,23 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 @Injectable()
 export class SupabaseService {
   private supabase: SupabaseClient;
+  private supabaseUrl: string;
 
   constructor(private configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
-    const supabaseKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl) {
+      throw new Error('Supabase URL must be provided');
+    }
+    this.supabaseUrl = supabaseUrl;
+    const supabaseKey = this.configService.get<string>(
+      'SUPABASE_SERVICE_ROLE_KEY',
+    );
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!this.supabaseUrl || !supabaseKey) {
       throw new Error('Supabase URL and Service Role Key must be provided');
     }
 
-    this.supabase = createClient(supabaseUrl, supabaseKey, {
+    this.supabase = createClient(this.supabaseUrl, supabaseKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
@@ -24,6 +31,28 @@ export class SupabaseService {
 
   getClient(): SupabaseClient {
     return this.supabase;
+  }
+
+  getUserClient(accessToken: string): SupabaseClient {
+    const anonKey = this.configService.get<string>('SUPABASE_ANON_KEY');
+    if (!anonKey) {
+      throw new Error('Supabase Anon Key must be provided');
+    }
+    return createClient(
+      this.supabaseUrl,
+      anonKey, // Pakai Anon key, bukan Service key
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`, // Inject token user di sini
+          },
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    );
   }
 
   // Helper method for vector similarity search
@@ -54,7 +83,7 @@ export class SupabaseService {
     return data;
   }
 
-  async getPublicUrl(bucket: string, path: string) {
+  public getPublicUrl(bucket: string, path: string) {
     const { data } = this.supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;
   }

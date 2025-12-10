@@ -4,10 +4,10 @@ export interface UserProfile {
   age?: number;
   height?: number;
   weight?: number;
-  preferences: string[];
-  allergies: string[];
-  goals: string[];
-  medicalHistory: string[];
+  preferences: string[]; // dari tastes
+  allergies: string[]; // dari allergies
+  goals: string; // dari goals (TEXT)
+  medicalHistory: string[]; // dari medical_history
   routine: {
     breakfast?: string;
     lunch?: string;

@@ -1,76 +1,30 @@
-import {
-    ConflictException,
-    Injectable,
-    NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase';
-import { CreateUserPreferenceDto, UpdateUserPreferenceDto } from './dto';
+import { UpdateUserPreferenceDto } from './dto';
 
 @Injectable()
 export class UserPreferencesService {
   constructor(private supabaseService: SupabaseService) {}
 
-  private get supabase() {
-    return this.supabaseService.getClient();
+  private getUserClient(accessToken: string) {
+    return this.supabaseService.getUserClient(accessToken);
   }
 
-  async create(createDto: CreateUserPreferenceDto) {
-    // Check if user exists
-    const { data: user, error: userError } = await this.supabase
-      .from('users')
-      .select('id')
-      .eq('id', createDto.userId)
-      .single();
-
-    if (userError || !user) {
-      throw new NotFoundException(`User with ID ${createDto.userId} not found`);
-    }
-
-    // Check if preference already exists
-    const { data: existing } = await this.supabase
-      .from('user_preferences')
-      .select('id')
-      .eq('user_id', createDto.userId)
-      .single();
-
-    if (existing) {
-      throw new ConflictException(
-        'User preferences already exist. Use update instead.',
-      );
-    }
-
-    const { data, error } = await this.supabase
-      .from('user_preferences')
-      .insert({
-        user_id: createDto.userId,
-        allergies: createDto.allergies || [],
-        goals: createDto.goals,
-        tastes: createDto.tastes || [],
-        medical_history: createDto.medical_history || [],
-      })
-      .select('*, users(*)')
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-
-  async findByUserId(userId: string) {
-    const { data: preference, error } = await this.supabase
+  async findByUserId(accessToken: string) {
+    const { data: preference, error } = await this.getUserClient(accessToken)
       .from('user_preferences')
       .select('*, users(*)')
-      .eq('user_id', userId)
       .single();
-
+    console.log(preference);
     if (error || !preference) {
-      throw new NotFoundException(`Preferences for user ${userId} not found`);
+      throw new NotFoundException(`Preferences not found`);
     }
 
     return preference;
   }
 
-  async update(userId: string, updateDto: UpdateUserPreferenceDto) {
-    await this.findByUserId(userId);
+  async update(accessToken: string, updateDto: UpdateUserPreferenceDto) {
+    await this.findByUserId(accessToken);
 
     const updateData: Record<string, unknown> = {};
     if (updateDto.allergies !== undefined)
@@ -79,40 +33,33 @@ export class UserPreferencesService {
     if (updateDto.tastes !== undefined) updateData.tastes = updateDto.tastes;
     if (updateDto.medical_history !== undefined)
       updateData.medical_history = updateDto.medical_history;
+    if (updateDto.meal_times !== undefined)
+      updateData.meal_times = updateDto.meal_times;
+    if (updateDto.daily_budget !== undefined)
+      updateData.daily_budget = updateDto.daily_budget;
     updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await this.supabase
+    const { data, error } = await this.getUserClient(accessToken)
       .from('user_preferences')
       .update(updateData)
-      .eq('user_id', userId)
       .select('*, users(*)')
       .single();
-
+    console.log(error);
     if (error) throw error;
     return data;
   }
 
-  async upsert(userId: string, dto: UpdateUserPreferenceDto) {
-    // Check if user exists
-    const { data: user, error: userError } = await this.supabase
-      .from('users')
-      .select('id')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
-    }
-
-    const { data, error } = await this.supabase
+  async upsert(accessToken: string, dto: UpdateUserPreferenceDto) {
+    const { data, error } = await this.getUserClient(accessToken)
       .from('user_preferences')
       .upsert(
         {
-          user_id: userId,
           allergies: dto.allergies || [],
-          goals: dto.goals,
+          goals: dto.goals || [],
           tastes: dto.tastes || [],
           medical_history: dto.medical_history || [],
+          meal_times: dto.meal_times || {},
+          daily_budget: dto.daily_budget,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' },
@@ -124,13 +71,12 @@ export class UserPreferencesService {
     return data;
   }
 
-  async remove(userId: string) {
-    await this.findByUserId(userId);
+  async remove(accessToken: string) {
+    await this.findByUserId(accessToken);
 
-    const { data, error } = await this.supabase
+    const { data, error } = await this.getUserClient(accessToken)
       .from('user_preferences')
       .delete()
-      .eq('user_id', userId)
       .select()
       .single();
 

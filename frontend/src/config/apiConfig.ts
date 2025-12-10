@@ -7,20 +7,77 @@ export const API_CONFIG = {
       LOGOUT: "/auth/logout",
       REFRESH: "/auth/refresh",
       VERIFY: "/auth/verify",
+      CHANGE_PASSWORD: "/auth/change-password",
+      RESET_PASSWORD_REQUEST: "/auth/reset-password-request",
+      RESET_PASSWORD: "/auth/reset-password",
     },
     USER: {
       PROFILE: "/user/profile",
       UPDATE: "/user/update",
     },
+
+    USERS: {
+      GET_BY_ID: "/users/me",
+      PATCH_BY_ID: "/users/me",
+      DELETE_BY_ID: "/users/me",
+      CHECK_PREFERENCE: "/users/check-preference",
+    },
+
     MEALS: {
       LIST: "/meals",
       CREATE: "/meals/create",
       UPDATE: "/meals/update",
       DELETE: "/meals/delete",
     },
+
+    FOOD_ITEMS: {
+      CREATE: "/food-items",
+      LIST: "/food-items",
+      GET_BY_ID: "/food-items/:id",
+      PATCH_BY_ID: "/food-items/:id",
+      UPDATE_NUTRIENTS: "/food-items/:id/nutrients",
+      ADD_CATEGORY: "/food-items/:id/categories",
+      DELETE_CATEGORY: "/food-items/:id/categories/:categoryId",
+      DELETE_BY_ID: "/food-items/:id",
+    },
+
+    FOOD_LOGS: {
+      CREATE: "/food-logs",
+      LOG: "/food-logs/log",
+      LIST: "/food-logs",
+      GET_BY_ID: "/food-logs/:id",
+      PATCH_BY_ID: "/food-logs/:id",
+      DELETE_BY_ID: "/food-logs/:id",
+      LIST_BY_USER: "/food-logs/user/:userId",
+      DAILY_BY_USER: "/food-logs/user/:userId/daily",
+      WEEKLY_BY_USER: "/food-logs/user/:userId/weekly",
+    },
+
     NUTRITION: {
       ANALYZE: "/nutrition/analyze",
       INSIGHTS: "/nutrition/insights",
+    },
+
+    NUTRITION_RULES: {
+      CREATE: "/nutrition-rules",
+      LIST: "/nutrition-rules",
+      GET_BY_NUTRIENT: "/nutrition-rules/nutrient/:nutrient",
+      CHECK: "/nutrition-rules/check",
+      GET_BY_ID: "/nutrition-rules/:id",
+      PATCH_BY_ID: "/nutrition-rules/:id",
+      DELETE_BY_ID: "/nutrition-rules/:id",
+    },
+
+    HABIT_INSIGHTS: {
+      LIST: "/habit-insights",
+    },
+
+    USER_PREFERENCES: {
+      BY_USER: "/user-preferences/",
+      GET_BY_USER: "/user-preferences/",
+      PUT_BY_USER: "/user-preferences/",
+      PATCH_BY_USER: "/user-preferences/",
+      DELETE_BY_USER: "/user-preferences/",
     },
   },
   TIMEOUT: 30000,
@@ -29,6 +86,7 @@ export const API_CONFIG = {
 export const AUTH_STORAGE_KEY = "nutrimori_auth_token";
 export const REFRESH_STORAGE_KEY = "nutrimori_refresh_token";
 export const USER_STORAGE_KEY = "nutrimori_user";
+export const PREFERENCES_STORAGE_KEY = "nutrimori_preferences";
 
 // Helper function to get full URL
 export const getApiUrl = (endpoint: string): string => {

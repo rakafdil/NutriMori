@@ -6,8 +6,10 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import express from 'express';
 import { LoginDto, RegisterDto } from './dto';
 
 @Controller('auth')
@@ -28,9 +30,22 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: LoginDto) {
-    const result = await this.authService.login(loginDto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const result = await this.authService.login(dto); // returns tokens & user
+    // set httpOnly cookie for refresh token
+    res.cookie('nutrimori_refresh_token', result.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      path: '/',
+    });
+    // optionally set access token as httpOnly short-lived, or return access token in body
     return {
+      access_token: result.access_token,
       success: true,
       message: 'Login successful',
       data: result,
