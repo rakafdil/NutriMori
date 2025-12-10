@@ -36,9 +36,6 @@ export const useHabitInsights = (
     endDate?: string;
   }>({ startDate, endDate });
 
-  // note: token reading removed — backend sets httpOnly cookie so frontend JS cannot read it.
-  // habitInsightsService will use credentials: 'include' when no local token exists.
-
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -49,10 +46,8 @@ export const useHabitInsights = (
         ...dateRange,
       };
 
-      // habitInsightsService will include cookies automatically if necessary
       const response = await habitInsightsService.getHabitInsights(params);
-
-      if (response.success) {
+      if (response.statusCode) {
         setData(response.data);
       } else {
         setError(response.message || "Failed to fetch habit insights");

@@ -101,6 +101,6 @@ export const getAuthHeaders = (): HeadersInit => {
       : null;
   return {
     "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
+    ...(token && { Authorization: `Bearer ${token}`, credentials: "include" }),
   };
 };

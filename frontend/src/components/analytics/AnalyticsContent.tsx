@@ -48,6 +48,7 @@ const AnalyticsContent: React.FC = () => {
   }
 
   if (error) {
+    console.log(error);
     return (
       <div className="p-6 md:p-8 max-w-7xl mx-auto">
         <div className="bg-red-50 dark:bg-red-900/30 p-6 rounded-2xl border border-red-200 dark:border-red-800">

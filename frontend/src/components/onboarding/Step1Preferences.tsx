@@ -75,6 +75,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
                 Username
               </label>
               <input
+                required
                 type="text"
                 value={profileData.username}
                 onChange={(e) =>
@@ -89,6 +90,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
                 Umur (tahun)
               </label>
               <input
+                required
                 type="number"
                 value={profileData.age || ""}
                 onChange={(e) =>
@@ -105,6 +107,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
                 Tinggi (cm)
               </label>
               <input
+                required
                 type="number"
                 value={profileData.height || ""}
                 onChange={(e) =>
@@ -121,6 +124,7 @@ export const Step1Preferences: React.FC<Step1Props> = ({
                 Berat (kg)
               </label>
               <input
+                required
                 type="number"
                 value={profileData.weight || ""}
                 onChange={(e) =>

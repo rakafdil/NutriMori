@@ -1,7 +1,7 @@
 import {
   Injectable,
   InternalServerErrorException,
-  NotFoundException
+  NotFoundException,
 } from '@nestjs/common';
 import { PostgrestError } from '@supabase/supabase-js'; // Import this type
 import { SupabaseService } from '../supabase';
@@ -40,7 +40,10 @@ export class FoodLogsService {
     throw new InternalServerErrorException(fallbackMessage);
   }
 
-  async create(userId: string, createDto: CreateFoodLogDto): Promise<FoodLogWithRelations> {
+  async create(
+    userId: string,
+    createDto: CreateFoodLogDto,
+  ): Promise<FoodLogWithRelations> {
     // Verify user exists
     const userResult = await this.supabase
       .from('users')
@@ -78,7 +81,10 @@ export class FoodLogsService {
     return result.data as FoodLogWithRelations;
   }
 
-  async logFood(userId: string, input: LogFoodInputDto): Promise<FoodLogWithRelations> {
+  async logFood(
+    userId: string,
+    input: LogFoodInputDto,
+  ): Promise<FoodLogWithRelations> {
     // Verify user exists
     const userResult = await this.supabase
       .from('users')

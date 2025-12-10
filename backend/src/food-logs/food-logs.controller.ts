@@ -52,10 +52,7 @@ export class FoodLogsController {
   }
 
   @Get('daily')
-  getDailySummary(
-    @GetUser('id') userId: string,
-    @Query('date') date?: string,
-  ) {
+  getDailySummary(@GetUser('id') userId: string, @Query('date') date?: string) {
     return this.foodLogsService.getDailySummary(
       userId,
       date ? new Date(date) : new Date(),
@@ -74,7 +71,10 @@ export class FoodLogsController {
   }
 
   @Get(':id')
-  findOne(@GetUser('id') userId: string, @Param('id', ParseUUIDPipe) id: string) {
+  findOne(
+    @GetUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.foodLogsService.findOne(userId, id);
   }
 
@@ -88,7 +88,10 @@ export class FoodLogsController {
   }
 
   @Delete(':id')
-  remove(@GetUser('id') userId: string, @Param('id', ParseUUIDPipe) id: string) {
+  remove(
+    @GetUser('id') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
     return this.foodLogsService.remove(userId, id);
   }
 }

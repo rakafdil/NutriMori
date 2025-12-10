@@ -4,16 +4,13 @@ import {
 } from "@/types/habitInsights";
 import { API_CONFIG, AUTH_STORAGE_KEY, getApiUrl } from "@/config/apiConfig";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://nutrimori.vercel.app/api";
-
 class HabitInsightsService {
   // Build URL for habit insights; prefer configured endpoint, fallback to BASE_URL
   private buildUrl(params?: HabitInsightsParams) {
     const base =
       API_CONFIG && (API_CONFIG as any).ENDPOINTS?.HABIT_INSIGHTS
         ? getApiUrl((API_CONFIG as any).ENDPOINTS.HABIT_INSIGHTS)
-        : `${BASE_URL}/habit-insights`;
+        : `${API_CONFIG.BASE_URL}/habit-insights`;
 
     if (!params) return base;
 
@@ -55,8 +52,7 @@ class HabitInsightsService {
     const fetchOptions: RequestInit = {
       ...options,
       headers,
-      // if there's no token in storage, include credentials so httpOnly cookie is sent
-      ...(token ? {} : { credentials: "include" }),
+      credentials: "include",
     };
 
     return fetch(url, fetchOptions);
@@ -66,10 +62,7 @@ class HabitInsightsService {
   async getHabitInsights(
     params: HabitInsightsParams
   ): Promise<HabitInsightsResponse> {
-    const base =
-      API_CONFIG && (API_CONFIG as any).ENDPOINTS?.HABIT_INSIGHTS
-        ? getApiUrl((API_CONFIG as any).ENDPOINTS.HABIT_INSIGHTS)
-        : `${BASE_URL}/habit-insights`;
+    const base = getApiUrl(API_CONFIG.ENDPOINTS.HABIT_INSIGHTS.LIST);
 
     const queryParams = new URLSearchParams();
     queryParams.append("period", params.period);
@@ -86,11 +79,12 @@ class HabitInsightsService {
       let text = response.statusText;
       try {
         const errJson = await response.json();
-        text = errJson?.message || text;
+        // console.log(errJson);
+        text = JSON.stringify(errJson) || text;
       } catch {
         // ignore
       }
-      throw new Error(`Failed to fetch habit insights: ${text}`);
+      throw new Error(text);
     }
 
     return response.json();

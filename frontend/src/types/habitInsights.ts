@@ -36,7 +36,7 @@ export interface AIPatternDiscovery {
 }
 
 export interface HabitInsightsResponse {
-  success: boolean;
+  statusCode: boolean;
   data: {
     period: HabitInsightsPeriod;
     startDate: string;

@@ -3,7 +3,7 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 /**
  * Custom decorator to extract authenticated user from request
  * Use with @UseGuards(JwtAuthGuard) to ensure user is authenticated
- * 
+ *
  * @example
  * ```typescript
  * @Get('profile')
@@ -11,7 +11,7 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
  * getProfile(@GetUser() user: { id: string; email: string }) {
  *   return user;
  * }
- * 
+ *
  * // Or extract specific field
  * @Get('data')
  * @UseGuards(JwtAuthGuard)
