@@ -15,7 +15,7 @@ export class UserPreferencesService {
       .from('user_preferences')
       .select('*, users(*)')
       .single();
-    console.log(preference);
+    // console.log(preference);
     if (error || !preference) {
       throw new NotFoundException(`Preferences not found`);
     }
@@ -24,7 +24,8 @@ export class UserPreferencesService {
   }
 
   async update(accessToken: string, updateDto: UpdateUserPreferenceDto) {
-    await this.findByUserId(accessToken);
+    const preference = await this.findByUserId(accessToken);
+    console.log(preference);
 
     const updateData: Record<string, unknown> = {};
     if (updateDto.allergies !== undefined)
@@ -37,14 +38,16 @@ export class UserPreferencesService {
       updateData.meal_times = updateDto.meal_times;
     if (updateDto.daily_budget !== undefined)
       updateData.daily_budget = updateDto.daily_budget;
+
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await this.getUserClient(accessToken)
       .from('user_preferences')
       .update(updateData)
+      .eq('user_id', preference.user_id)
       .select('*, users(*)')
       .single();
-    console.log(error);
+
     if (error) throw error;
     return data;
   }

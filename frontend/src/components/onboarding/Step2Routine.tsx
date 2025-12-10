@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Clock, Wallet, DollarSign } from "lucide-react";
-import { PreferencesData } from "./OnboardingContent";
-
+import { PreferencesData } from "@/hooks/usePreferences";
 interface Step2Props {
   preferencesData: PreferencesData;
   setPreferencesData: React.Dispatch<React.SetStateAction<PreferencesData>>;

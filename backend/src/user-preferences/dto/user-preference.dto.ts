@@ -91,7 +91,8 @@ export class UpdateUserPreferenceDto {
     example: 'bulking',
   })
   @IsOptional()
-  @IsString()
+  @IsArray()
+  @IsString({ each: true })
   goals?: string[];
 
   @ApiPropertyOptional({

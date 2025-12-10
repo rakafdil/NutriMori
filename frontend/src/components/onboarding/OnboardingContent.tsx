@@ -8,27 +8,8 @@ import { NavigationButtons } from "./NavigationButtons";
 import { Step1Preferences } from "./Step1Preferences";
 import { Step2Routine } from "./Step2Routine";
 import { Step3Summary } from "./Step3Summary";
-import { userService } from "@/services/user.service";
-import preferencesService from "@/services/prefrences.service";
-
-export interface ProfileData {
-  username: string;
-  age: number | undefined;
-  height: number | undefined;
-  weight: number | undefined;
-}
-
-export interface PreferencesData {
-  preferences: string[];
-  allergies: string[];
-  goals: string[];
-  medicalHistory: string[];
-  routine: { breakfast: string; lunch: string; dinner: string };
-  budget: number;
-}
-
-const PROFILE_STORAGE_KEY = "nutrimori_user";
-const PREFERENCES_STORAGE_KEY = "nutrimori_preferences";
+import { useProfile } from "@/hooks/useProfile";
+import { usePreferences } from "@/hooks/usePreferences";
 
 const steps = [
   { id: 1, title: "Preferensi Makanan" },
@@ -41,21 +22,23 @@ const OnboardingContent: React.FC = () => {
   const { setUser } = useUser();
   const [step, setStep] = useState(1);
 
-  const [profileData, setProfileData] = useState<ProfileData>({
-    username: "",
-    age: undefined,
-    height: undefined,
-    weight: undefined,
-  });
+  // Use custom hooks
+  const {
+    profileData,
+    setProfileData,
+    fetchProfile,
+    loadFromCache: loadProfileCache,
+    saveProfile,
+  } = useProfile();
 
-  const [preferencesData, setPreferencesData] = useState<PreferencesData>({
-    preferences: [],
-    allergies: [],
-    goals: [],
-    medicalHistory: [],
-    routine: { breakfast: "07:00", lunch: "12:00", dinner: "19:00" },
-    budget: 50000,
-  });
+  const {
+    preferencesData,
+    setPreferencesData,
+    fetchPreferences,
+    loadFromCache: loadPreferencesCache,
+    savePreferences,
+    toggleSelection,
+  } = usePreferences();
 
   // Combined profile for backward compatibility with context
   const profile: UserProfile = {
@@ -68,121 +51,20 @@ const OnboardingContent: React.FC = () => {
 
   useEffect(() => {
     const initData = async () => {
-      // Load cached profile data
-      const storedProfile = localStorage.getItem(PROFILE_STORAGE_KEY);
-      if (storedProfile) {
-        try {
-          const parsed = JSON.parse(storedProfile);
-          setProfileData((prev) => ({
-            ...prev,
-            username: parsed.username || "",
-            age: parsed.age,
-            height: parsed.height,
-            weight: parsed.weight,
-          }));
-        } catch (error) {
-          console.error("Error parsing cached profile data", error);
-        }
-      }
+      // Load from cache first for instant UI
+      loadProfileCache();
+      loadPreferencesCache();
 
-      // Load cached preferences data
-      const storedPreferences = localStorage.getItem(PREFERENCES_STORAGE_KEY);
-      if (storedPreferences) {
-        try {
-          const parsed = JSON.parse(storedPreferences);
-          setPreferencesData((prev) => ({
-            ...prev,
-            preferences: parsed.preferences || [],
-            allergies: parsed.allergies || [],
-            goals: Array.isArray(parsed.goals)
-              ? parsed.goals
-              : parsed.goals
-              ? [parsed.goals]
-              : [],
-            medicalHistory: parsed.medicalHistory || [],
-            routine: parsed.routine || prev.routine,
-            budget: parsed.budget || 50000,
-          }));
-        } catch (error) {
-          console.error("Error parsing cached preferences data", error);
-        }
-      }
-
+      // Then fetch fresh data from API
       try {
-        const [prefData, profileDataRes] = await Promise.all([
-          preferencesService.getPreferences(),
-          userService.getProfile(),
-        ]);
-
-        const newProfileData: ProfileData = {
-          username: profileDataRes?.username || "",
-          age: profileDataRes?.age,
-          height: profileDataRes?.height_cm,
-          weight: profileDataRes?.weight_kg,
-        };
-
-        const newPreferencesData: PreferencesData = {
-          preferences: prefData?.tastes || [],
-          allergies: prefData?.allergies || [],
-          goals: Array.isArray(prefData?.goals)
-            ? prefData.goals
-            : prefData?.goals
-            ? [prefData.goals]
-            : [],
-          medicalHistory: prefData?.medical_history || [],
-          routine: {
-            breakfast: prefData?.meal_times?.breakfast ?? "07:00",
-            lunch: prefData?.meal_times?.lunch ?? "12:00",
-            dinner: prefData?.meal_times?.dinner ?? "19:00",
-          },
-          budget: prefData?.daily_budget || 50000,
-        };
-
-        setProfileData(newProfileData);
-        setPreferencesData(newPreferencesData);
-
-        // Save to separate localStorage keys
-        localStorage.setItem(
-          PROFILE_STORAGE_KEY,
-          JSON.stringify(newProfileData)
-        );
-        localStorage.setItem(
-          PREFERENCES_STORAGE_KEY,
-          JSON.stringify(newPreferencesData)
-        );
+        await Promise.all([fetchProfile(), fetchPreferences()]);
       } catch (error) {
         console.error("Failed to sync user data:", error);
       }
     };
 
     initData();
-  }, []);
-
-  // Save profile data to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profileData));
-  }, [profileData]);
-
-  // Save preferences data to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem(
-      PREFERENCES_STORAGE_KEY,
-      JSON.stringify(preferencesData)
-    );
-  }, [preferencesData]);
-
-  const togglePreferencesSelection = (
-    key: keyof PreferencesData,
-    value: string
-  ) => {
-    setPreferencesData((prev) => {
-      const current = prev[key] as string[];
-      if (current.includes(value)) {
-        return { ...prev, [key]: current.filter((item) => item !== value) };
-      }
-      return { ...prev, [key]: [...current, value] };
-    });
-  };
+  }, [fetchProfile, fetchPreferences, loadProfileCache, loadPreferencesCache]);
 
   const handleNext = async () => {
     if (step < steps.length) {
@@ -190,11 +72,10 @@ const OnboardingContent: React.FC = () => {
     } else {
       try {
         await Promise.all([saveProfile(), savePreferences()]);
-      } catch (error) {
-        console.error("Error saving onboarding data:", error);
-      } finally {
         setUser(profile);
         router.push("/dashboard");
+      } catch (error) {
+        console.error("Error saving onboarding data:", error);
       }
     }
   };
@@ -202,47 +83,6 @@ const OnboardingContent: React.FC = () => {
   const handleBack = () => {
     if (step > 1) {
       setStep(step - 1);
-    }
-  };
-
-  const saveProfile = async () => {
-    const payload = {
-      username: profileData.username || undefined,
-      age: profileData.age ?? undefined,
-      height_cm: profileData.height ?? undefined,
-      weight_kg: profileData.weight ?? undefined,
-    };
-
-    try {
-      await userService.updateProfile(payload);
-    } catch (error) {
-      console.error("Failed to save profile:", error);
-    }
-  };
-
-  const savePreferences = async () => {
-    const payload = {
-      allergies: preferencesData.allergies?.length
-        ? preferencesData.allergies
-        : undefined,
-      goals: preferencesData.goals?.length ? preferencesData.goals : undefined,
-      tastes: preferencesData.preferences?.length
-        ? preferencesData.preferences
-        : undefined,
-      medical_history: preferencesData.medicalHistory?.length
-        ? preferencesData.medicalHistory
-        : undefined,
-      meal_times: preferencesData.routine
-        ? { ...preferencesData.routine }
-        : undefined,
-      daily_budget: preferencesData.budget ?? undefined,
-    };
-
-    try {
-      // Use upsert to create or update (PUT), or use updatePreferences (PATCH) if you prefer
-      await preferencesService.upsertPreferences(payload);
-    } catch (error) {
-      console.error("Failed to save preferences:", error);
     }
   };
 
@@ -255,7 +95,7 @@ const OnboardingContent: React.FC = () => {
             preferencesData={preferencesData}
             setProfileData={setProfileData}
             setPreferencesData={setPreferencesData}
-            toggleSelection={togglePreferencesSelection}
+            toggleSelection={toggleSelection}
           />
         );
       case 2:
