@@ -44,3 +44,4 @@ instance/
 data/*.parquet
 data/*.npy
 data/*.faiss
+.vercel

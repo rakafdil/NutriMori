@@ -1,0 +1,171 @@
+{
+  "info": {
+    "name": "NutriMori - Habit Insights",
+    "description": "Testing collection for Habit Insights API endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Get Habit Insights - Weekly",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/habit-insights?period=weekly",
+          "host": ["{{base_url}}"],
+          "path": ["habit-insights"],
+          "query": [
+            {
+              "key": "period",
+              "value": "weekly",
+              "description": "Analysis period: weekly, monthly, yearly, or overall"
+            }
+          ]
+        },
+        "description": "Get habit insights for the last 7 days. User ID is automatically extracted from JWT token."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Habit Insights - Monthly",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/habit-insights?period=monthly",
+          "host": ["{{base_url}}"],
+          "path": ["habit-insights"],
+          "query": [
+            {
+              "key": "period",
+              "value": "monthly",
+              "description": "Last 30 days"
+            }
+          ]
+        },
+        "description": "Get habit insights for the last 30 days. User ID is automatically extracted from JWT token."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Habit Insights - Yearly",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/habit-insights?period=yearly",
+          "host": ["{{base_url}}"],
+          "path": ["habit-insights"],
+          "query": [
+            {
+              "key": "period",
+              "value": "yearly",
+              "description": "Last 365 days"
+            }
+          ]
+        },
+        "description": "Get habit insights for the last 365 days. User ID is automatically extracted from JWT token."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Habit Insights - Overall",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/habit-insights?period=overall",
+          "host": ["{{base_url}}"],
+          "path": ["habit-insights"],
+          "query": [
+            {
+              "key": "period",
+              "value": "overall",
+              "description": "All available data"
+            }
+          ]
+        },
+        "description": "Get habit insights for all available data. User ID is automatically extracted from JWT token."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Habit Insights - Custom Date Range",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/habit-insights?period=weekly&startDate=2024-12-01&endDate=2024-12-10",
+          "host": ["{{base_url}}"],
+          "path": ["habit-insights"],
+          "query": [
+            {
+              "key": "period",
+              "value": "weekly",
+              "description": "Period type (can be any valid period)"
+            },
+            {
+              "key": "startDate",
+              "value": "2024-12-01",
+              "description": "Custom start date (YYYY-MM-DD)"
+            },
+            {
+              "key": "endDate",
+              "value": "2024-12-10",
+              "description": "Custom end date (YYYY-MM-DD)"
+            }
+          ]
+        },
+        "description": "Get habit insights for a custom date range. User ID is automatically extracted from JWT token."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://nutrimori.vercel.app/api",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

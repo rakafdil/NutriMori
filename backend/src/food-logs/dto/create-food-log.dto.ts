@@ -1,16 +1,12 @@
 import {
-  IsString,
-  IsOptional,
-  IsEnum,
   IsBoolean,
-  IsUUID,
+  IsEnum,
+  IsOptional,
+  IsString,
 } from 'class-validator';
 import * as types from '../types';
 
 export class CreateFoodLogDto {
-  @IsUUID()
-  userId: string;
-
   @IsOptional()
   @IsString()
   rawText?: string;

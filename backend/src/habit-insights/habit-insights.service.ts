@@ -25,7 +25,7 @@ export class HabitInsightsService {
         return this.supabaseService.getClient();
     }
 
-    async generateInsight(dto: GetHabitInsightDto): Promise<HabitInsightResponseDto> {
+    async generateInsight(dto: GetHabitInsightDto & { userId: string }): Promise<HabitInsightResponseDto> {
         // Verify user exists
         const { data: user, error: userError } = await this.supabase
             .from('users')
