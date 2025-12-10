@@ -12,57 +12,106 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { Calendar } from "lucide-react";
-
-const calorieData = [
-  { day: "Sen", cal: 1800 },
-  { day: "Sel", cal: 2100 },
-  { day: "Rab", cal: 1950 },
-  { day: "Kam", cal: 2300 },
-  { day: "Jum", cal: 1750 },
-  { day: "Sab", cal: 2400 },
-  { day: "Min", cal: 2000 },
-];
-
-const categoryData = [
-  { name: "Protein", value: 35 },
-  { name: "Carbs", value: 45 },
-  { name: "Fats", value: 20 },
-];
+import { Calendar, Loader2 } from "lucide-react";
+import { useHabitInsights } from "@/hooks/useHabitInsights";
+import { HabitInsightsPeriod } from "@/types/habitInsights";
 
 const COLORS = ["#10b981", "#84cc16", "#fbbf24"];
 
+const PERIOD_LABELS: Record<HabitInsightsPeriod, string> = {
+  weekly: "Last 7 Days",
+  monthly: "Last 30 Days",
+  yearly: "Last Year",
+  overall: "All Time",
+};
+
 const AnalyticsContent: React.FC = () => {
+  const { data, isLoading, error, period, setPeriod } = useHabitInsights({
+    initialPeriod: "weekly",
+  });
+
+  const handlePeriodChange = (newPeriod: HabitInsightsPeriod) => {
+    setPeriod(newPeriod);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 md:p-8 max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+          <p className="text-gray-500 dark:text-gray-400">
+            Loading analytics...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 md:p-8 max-w-7xl mx-auto">
+        <div className="bg-red-50 dark:bg-red-900/30 p-6 rounded-2xl border border-red-200 dark:border-red-800">
+          <p className="text-red-600 dark:text-red-400">Error: {error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const calorieData = data?.calorieIntake || [];
+  const categoryData = data?.macronutrients || [];
+  const mealTiming = data?.mealTiming || [];
+  const aiPattern = data?.aiPatternDiscovery;
+  const dietScore = data?.dietScore || "N/A";
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-fade-in pb-24">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
           Weekly Analytics
         </h2>
-        <button className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
-          <Calendar className="w-4 h-4" /> Last 7 Days
-        </button>
+        <div className="relative">
+          <select
+            value={period}
+            onChange={(e) =>
+              handlePeriodChange(e.target.value as HabitInsightsPeriod)
+            }
+            className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 px-4 py-2 pr-8 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm transition-colors appearance-none cursor-pointer"
+          >
+            {Object.entries(PERIOD_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <Calendar className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+        </div>
       </div>
 
       {/* AI Pattern Report */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 flex items-start gap-4 transition-colors">
-        <div className="p-3 bg-white dark:bg-indigo-900/50 rounded-full shadow-sm">
-          <span className="text-2xl">🧠</span>
+      {aiPattern && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/50 flex items-start gap-4 transition-colors">
+          <div className="p-3 bg-white dark:bg-indigo-900/50 rounded-full shadow-sm">
+            <span className="text-2xl">🧠</span>
+          </div>
+          <div>
+            <h3 className="font-bold text-indigo-900 dark:text-indigo-200 text-lg mb-1">
+              {aiPattern.title || "AI Pattern Discovery"}
+            </h3>
+            <p className="text-indigo-800/80 dark:text-indigo-300/80 leading-relaxed">
+              {aiPattern.description}
+              {aiPattern.highlights?.map((highlight, index) => (
+                <span
+                  key={index}
+                  className="font-semibold text-indigo-900 dark:text-indigo-200"
+                >
+                  {" "}
+                  {highlight}
+                </span>
+              ))}
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="font-bold text-indigo-900 dark:text-indigo-200 text-lg mb-1">
-            AI Pattern Discovery
-          </h3>
-          <p className="text-indigo-800/80 dark:text-indigo-300/80 leading-relaxed">
-            "Selama 3 minggu terakhir, kamu cenderung makan{" "}
-            <span className="font-semibold text-indigo-900 dark:text-indigo-200">
-              tinggi lemak
-            </span>{" "}
-            pada malam hari (di atas jam 20:00). Pola ini berkorelasi dengan
-            catatan 'kurang energi' kamu di pagi hari berikutnya."
-          </p>
-        </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Calorie Trend */}
@@ -157,7 +206,7 @@ const AnalyticsContent: React.FC = () => {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-3xl font-bold text-gray-800 dark:text-white">
-                Balanced
+                {dietScore}
               </span>
               <span className="text-sm text-gray-400">Diet Score</span>
             </div>
@@ -167,7 +216,7 @@ const AnalyticsContent: React.FC = () => {
               <div key={entry.name} className="flex items-center gap-2">
                 <div
                   className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: COLORS[index] }}
+                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
                 ></div>
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
                   {entry.name}
@@ -191,32 +240,45 @@ const AnalyticsContent: React.FC = () => {
           </div>
         </div>
         <div className="grid grid-cols-7 gap-1 h-32">
-          {[...Array(7)].map((_, i) => (
-            <div key={i} className="flex flex-col gap-1 h-full">
-              {[...Array(5)].map((_, j) => {
-                const opacity = Math.random();
-                return (
-                  <div
-                    key={j}
-                    className="flex-1 rounded-sm bg-emerald-500 transition-all hover:scale-105"
-                    style={{ opacity: opacity < 0.2 ? 0.1 : opacity }}
-                    title={`Day ${i + 1}, Slot ${j + 1}: ${Math.floor(
-                      opacity * 1000
-                    )} kcal`}
-                  />
-                );
-              })}
-            </div>
-          ))}
+          {mealTiming.length > 0
+            ? mealTiming.map((dayData, i) => (
+                <div key={i} className="flex flex-col gap-1 h-full">
+                  {dayData.slots.map((slot, j) => {
+                    const maxCalories = Math.max(
+                      ...mealTiming.flatMap((d) =>
+                        d.slots.map((s) => s.calories)
+                      )
+                    );
+                    const opacity =
+                      maxCalories > 0 ? slot.calories / maxCalories : 0.1;
+                    return (
+                      <div
+                        key={j}
+                        className="flex-1 rounded-sm bg-emerald-500 transition-all hover:scale-105"
+                        style={{ opacity: opacity < 0.1 ? 0.1 : opacity }}
+                        title={`${dayData.dayName}, Slot ${slot.slot}: ${slot.calories} kcal`}
+                      />
+                    );
+                  })}
+                </div>
+              ))
+            : [...Array(7)].map((_, i) => (
+                <div key={i} className="flex flex-col gap-1 h-full">
+                  {[...Array(5)].map((_, j) => (
+                    <div
+                      key={j}
+                      className="flex-1 rounded-sm bg-gray-200 dark:bg-gray-700"
+                    />
+                  ))}
+                </div>
+              ))}
         </div>
         <div className="flex justify-between text-xs text-gray-400 mt-2">
-          <span>Mon</span>
-          <span>Tue</span>
-          <span>Wed</span>
-          <span>Thu</span>
-          <span>Fri</span>
-          <span>Sat</span>
-          <span>Sun</span>
+          {mealTiming.length > 0
+            ? mealTiming.map((day) => <span key={day.day}>{day.dayName}</span>)
+            : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                <span key={day}>{day}</span>
+              ))}
         </div>
       </div>
     </div>

@@ -35,14 +35,36 @@ export class AuthController {
     @Res({ passthrough: true }) res: express.Response,
   ) {
     const result = await this.authService.login(dto); // returns tokens & user
-    // set httpOnly cookie for refresh token
-    res.cookie('nutrimori_refresh_token', result.refresh_token, {
+    // cookie options
+    const isProd = process.env.NODE_ENV === 'production';
+    const refreshCookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProd,
+      sameSite: 'lax' as const,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       path: '/',
-    });
+    };
+
+    const accessCookieOptions = {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax' as const,
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/',
+    };
+
+    // set httpOnly cookie for refresh token
+    res.cookie(
+      'nutrimori_refresh_token',
+      result.refresh_token,
+      refreshCookieOptions,
+    );
+    // set httpOnly cookie for access token (short-lived)
+    res.cookie(
+      'nutrimori_access_token',
+      result.access_token,
+      accessCookieOptions,
+    );
     // optionally set access token as httpOnly short-lived, or return access token in body
     return {
       access_token: result.access_token,
