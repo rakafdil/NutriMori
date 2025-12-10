@@ -11,12 +11,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { GetUser } from '../auth/decorators';
-import { SupabaseService } from '../supabase';
+import { JwtAuthGuard } from '../auth/guards';
 import { CreateFoodLogDto, LogFoodInputDto, UpdateFoodLogDto } from './dto';
 import { FoodLogsService } from './food-logs.service';
 
 @Controller('food-logs')
-@UseGuards( SupabaseService)
+@UseGuards(JwtAuthGuard)
 export class FoodLogsController {
   constructor(private readonly foodLogsService: FoodLogsService) {}
 
