@@ -1,6 +1,8 @@
 import google.generativeai as genai
 import json
 import os
+import time
+import random
 
 # Pastikan API KEY sudah diset
 # os.environ["GOOGLE_API_KEY"] = "MASUKKAN_API_KEY_ANDA"
@@ -25,14 +27,15 @@ def generate_food_candidates(query_text):
     
     # Update daftar model (hapus model yang sudah deprecated/tidak stabil)
     model_list = [
-        'gemini-2.5-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
-        'gemini-pro' # Model lama tapi stabil
+        "models/gemini-flash-latest",   # Versi stabil Flash
+        "models/gemini-pro-latest",     # Versi stabil Pro (Coba ini!)
+        "models/gemini-2.0-flash-lite", # Ringan
+        "models/gemini-2.0-flash",      # Canggih
     ]
 
     for model_name in model_list:
         try:
+            time.sleep(0.5 + random.random())
             print(f"Mencoba model: {model_name}...") # Debugging log
             
             # FITUR BARU: Menggunakan response_mime_type untuk memaksa output JSON
@@ -48,15 +51,17 @@ def generate_food_candidates(query_text):
             # Parsing JSON
             candidates = json.loads(text_resp)
             if isinstance(candidates, list):
-                candidates.append(query_text) # Tambahkan query asli sebagai fallback terakhir
+                # Sukses! Kembalikan hasil bersih (tanpa append input asli yang ada angkanya)
                 return candidates
             
-        except Exception as e:
-            # JANGAN return str(e) di sini, karena akan mematikan loop.
-            # Print error saja, lalu biarkan loop lanjut ke model berikutnya.
-            print(f"Gagal dengan model {model_name}: {e}")
+        except Exception:
+            # Silent Fail: Jika error (429/404), langsung coba model berikutnya tanpa print berisik
             continue 
 
-    # Fallback jika SEMUA model gagal
-    print("Semua model gagal, menggunakan fallback default.")
+    # --- FALLBACK MANUAL ---
+    # Jika semua AI mati/limit, kita split manual sederhana
+    if " dan " in query_text:
+        return query_text.split(" dan ")
+        
+    # Kembalikan input asli sebagai jalan terakhir
     return [query_text]
