@@ -9,7 +9,7 @@ import google.generativeai as genai
 # --- FIX 1: LOAD ENV DARI FOLDER ROOT ---
 # Kita naik satu level ke atas (..) untuk cari .env
 current_file = Path(__file__).resolve()
-project_root = current_file.parent.parent # Folder NutriMori
+project_root = current_file.parent # Folder NutriMori
 env_path = project_root / '.env'
 
 # Load explicit path
@@ -27,27 +27,57 @@ else:
 sys.path.append(str(current_file.parent))
 
 # Import Core
-from core.matcher import FoodMatcher
 from core.nutrition import NutritionCalculator
 from core.llm_helper import generate_food_candidates
 from core.portion import portion_to_gram
+# NEW: import memory util
+from core.memory_utils import get_process_memory_mb
 
 app = Flask(__name__)
 CORS(app)
 
+# --- MODE DEPLOY: Gunakan Supabase untuk hemat RAM ---
+USE_SUPABASE = os.environ.get("USE_SUPABASE", "0") == "1"
+
 print("⏳ Initializing AI components...")
 try:
+    # FoodMatcher sekarang auto-detect mode (Supabase vs Local)
+    from core.matcher import FoodMatcher
     matcher = FoodMatcher()
+    
     nutrition_calc = NutritionCalculator()
     print("✅ AI components ready!")
+    # Log memory after init
+    try:
+        mem_mb = get_process_memory_mb()
+        print(f"🧠 Current process memory: {mem_mb:.1f} MB")
+    except Exception:
+        pass
 except Exception as e:
     print(f"❌ Error initializing AI: {e}")
+    matcher = None
 
 # --- ROUTES ---
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({'status': 'healthy', 'service': 'NutriMori AI Service'})
+    return jsonify({
+        'status': 'healthy', 
+        'service': 'NutriMori AI Service',
+        'mode': 'supabase' if USE_SUPABASE else 'local'
+    })
+
+# NEW: debug endpoint to check current memory usage
+@app.route('/debug/memory', methods=['GET'])
+def debug_memory():
+    try:
+        mem_mb = get_process_memory_mb()
+        return jsonify({
+            'memory_mb': round(mem_mb, 2),
+            'note': 'Resident Set Size (RSS) of this Python process'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/parse-food', methods=['POST'])
 def parse_food():
@@ -66,7 +96,7 @@ def parse_food():
         candidates = generate_food_candidates(text)
         print(f"🤖 LLM Candidates: {candidates}")
         
-        # 2. Matcher
+        # 2. Matching - sekarang FoodMatcher handle sendiri
         match_results = matcher.match_with_llm_candidates(candidates, top_final=5)
         
         if not match_results:
@@ -97,7 +127,8 @@ def parse_food():
             'nutrition': output_nutrisi,
             'metadata': {
                 'logic': nutrition.get('metode'),
-                'score': match_results[0]['similarity']
+                'score': match_results[0]['similarity'] if match_results else 0,
+                'mode': 'supabase' if USE_SUPABASE else 'local'
             }
         })
         
