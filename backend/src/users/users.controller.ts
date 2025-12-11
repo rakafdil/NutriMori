@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Patch, Req } from '@nestjs/common';
 import express from 'express';
-import { extractTokenFromRequest } from 'src/utils/extract-token.util';
+import { extractTokenFromRequest } from '../utils/extract-token.util';
 import { UpdateUserDto } from './dto';
 import { UsersService } from './users.service';
 
