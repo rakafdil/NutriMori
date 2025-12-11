@@ -42,15 +42,15 @@ export const API_CONFIG = {
     },
 
     FOOD_LOGS: {
-      CREATE: "/food-logs",
+      CREATE: "/food-logs", // sama kek log
       LOG: "/food-logs/log",
-      LIST: "/food-logs",
+      LIST: "/food-logs/lists",
       GET_BY_ID: "/food-logs/:id",
       PATCH_BY_ID: "/food-logs/:id",
       DELETE_BY_ID: "/food-logs/:id",
-      LIST_BY_USER: "/food-logs/user/:userId",
-      DAILY_BY_USER: "/food-logs/user/:userId/daily",
-      WEEKLY_BY_USER: "/food-logs/user/:userId/weekly",
+      DAILY_BY_USER: "/food-logs/daily",
+      WEEKLY_BY_USER: "/food-logs/weekly",
+      STREAKS: "/food-logs/streaks",
     },
 
     NUTRITION: {

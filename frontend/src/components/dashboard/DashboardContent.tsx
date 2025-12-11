@@ -7,6 +7,7 @@ import {
   UtensilsCrossed,
   AlertCircle,
   Zap,
+  TrendingUp,
 } from "lucide-react";
 import { Meal, NutritionInfo } from "@/types";
 import { useUser } from "@/context";
@@ -17,6 +18,47 @@ import {
 import AddMealModal from "./AddMealModal";
 import MealCard from "./MealCard";
 import NutritionBreakdown from "./NutritionBreakdown";
+import {
+  useFoodLogsList,
+  useDailySummary,
+  useStreaks,
+  useFoodLogActions,
+} from "@/hooks/useFoodLogs";
+
+// Helper function to transform API data to Meal format
+const transformFoodLogToMeal = (log: any): Meal => {
+  // Calculate nutrition from food_log_items if available
+  const nutrition: NutritionInfo = {
+    items: [],
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fats: 0,
+    sodium: "Normal",
+  };
+
+  if (log.food_log_items && Array.isArray(log.food_log_items)) {
+    log.food_log_items.forEach((item: any) => {
+      if (item.food_items?.food_nutrients) {
+        const nutrients = item.food_items.food_nutrients;
+        nutrition.calories += nutrients.calories || 0;
+        nutrition.protein += nutrients.protein || 0;
+        nutrition.carbs += nutrients.carbs || 0;
+        nutrition.fats += nutrients.fats || 0;
+        if (nutrients.sodium && nutrients.sodium > 500) {
+          nutrition.sodium = "High";
+        }
+      }
+    });
+  }
+
+  return {
+    id: log.log_id || log.id,
+    name: log.raw_text || "Unknown meal",
+    timestamp: new Date(log.created_at),
+    nutrition,
+  };
+};
 
 const DashboardContent: React.FC = () => {
   const { user } = useUser();
@@ -29,12 +71,42 @@ const DashboardContent: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [analyzedData, setAnalyzedData] = useState<NutritionInfo | null>(null);
 
-  const totalCals = meals.reduce((acc, m) => acc + (m.nutrition.calories ?? 0), 0);
+  // Hooks for fetching data
+  const {
+    isLoading: isLoadingLogs,
+    data: logsData,
+    error: logsError,
+    refetch: refetchLogs,
+  } = useFoodLogsList();
+
+  const {
+    isLoading: isLoadingStreaks,
+    data: streaksData,
+    error: streaksError,
+  } = useStreaks();
+
+  const { isLoading: isLoadingSummary, data: summaryData } = useDailySummary();
+
+  const { createLog, isSubmitting } = useFoodLogActions();
+
+  // Transform and set meals when data is fetched
+  useEffect(() => {
+    if (logsData && Array.isArray(logsData)) {
+      const transformedMeals = logsData.map(transformFoodLogToMeal);
+      setMeals(transformedMeals);
+    }
+  }, [logsData]);
+
+  // Calculate totals from meals
+  const totalCals = meals.reduce(
+    (acc, m) => acc + (m.nutrition.calories ?? 0),
+    0
+  );
   const totalSodium = meals.filter((m) => m.nutrition.sodium === "High").length;
 
   useEffect(() => {
     if (meals.length > 0) {
-      generateDailyInsight(meals).then(setDailyInsight);
+      // generateDailyInsight(meals).then(setDailyInsight);
     } else {
       setDailyInsight("Belum ada data makan hari ini. Yuk catat sarapanmu!");
     }
@@ -48,15 +120,28 @@ const DashboardContent: React.FC = () => {
     setIsAnalyzing(false);
   };
 
-  const handleSaveMeal = () => {
+  const handleSaveMeal = async () => {
     if (analyzedData && mealInput) {
-      const newMeal: Meal = {
-        id: Date.now().toString(),
-        name: mealInput,
-        timestamp: new Date(),
-        nutrition: analyzedData,
-      };
-      setMeals((prev) => [newMeal, ...prev]);
+      // Save to backend
+      const result = await createLog({
+        mealType: "snack", // You can make this dynamic
+        rawText: mealInput,
+      } as any);
+
+      if (result.success) {
+        // Add to local state optimistically
+        const newMeal: Meal = {
+          id: result.data?.log_id || Date.now().toString(),
+          name: mealInput,
+          timestamp: new Date(),
+          nutrition: analyzedData,
+        };
+        setMeals((prev) => [newMeal, ...prev]);
+
+        // Refetch to sync with server
+        refetchLogs();
+      }
+
       setMealInput("");
       setAnalyzedData(null);
       setShowAddModal(false);
@@ -70,6 +155,36 @@ const DashboardContent: React.FC = () => {
   };
 
   if (!user) return null;
+
+  // Loading state
+  if (isLoadingLogs) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-gray-500 dark:text-gray-400">Memuat data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (logsError) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-red-600 dark:text-red-400">{logsError}</p>
+          <button
+            onClick={refetchLogs}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-24 font-sans animate-fade-in">
@@ -93,6 +208,7 @@ const DashboardContent: React.FC = () => {
 
       {/* Daily Snapshots */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Kalori Card */}
         <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-emerald-100 dark:border-gray-700 flex flex-col justify-between h-32 relative overflow-hidden group transition-colors">
           <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-bl-full -mr-2 -mt-2 transition-transform group-hover:scale-110" />
           <div className="flex items-start justify-between relative z-10">
@@ -114,6 +230,7 @@ const DashboardContent: React.FC = () => {
           </div>
         </div>
 
+        {/* Sodium Level Card */}
         <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-orange-100 dark:border-gray-700 flex flex-col justify-between h-32 transition-colors">
           <div className="flex items-start justify-between">
             <div className="p-2 bg-orange-100 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400 rounded-lg">
@@ -133,19 +250,27 @@ const DashboardContent: React.FC = () => {
           </div>
         </div>
 
+        {/* Streaks Card - Updated to use streaksData */}
         <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-blue-100 dark:border-gray-700 flex flex-col justify-between h-32 transition-colors">
           <div className="flex items-start justify-between">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg">
-              <UtensilsCrossed className="w-5 h-5" />
+              <TrendingUp className="w-5 h-5" />
             </div>
+            {streaksData?.currentStreak > 0 && (
+              <span className="text-xs font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-full">
+                🔥 {streaksData.currentStreak} days
+              </span>
+            )}
           </div>
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-              Meals Logged
+              Current Streak
             </p>
             <p className="text-2xl font-bold text-gray-800 dark:text-white">
-              {meals.length}{" "}
-              <span className="text-sm font-normal text-gray-400">meals</span>
+              {isLoadingStreaks ? "..." : streaksData?.currentStreak || 0}{" "}
+              <span className="text-sm font-normal text-gray-400">
+                / best: {streaksData?.longestStreak || 0}
+              </span>
             </p>
           </div>
         </div>
@@ -159,7 +284,11 @@ const DashboardContent: React.FC = () => {
             </span>
           </div>
           <p className="text-sm font-medium leading-tight">
-            "You're on fire! Konsistensi proteinmu minggu ini naik."
+            {streaksData?.currentStreak >= 7
+              ? "🔥 Amazing! 7+ hari berturut-turut! Keep it up!"
+              : streaksData?.currentStreak >= 3
+              ? "👍 Great progress! Consistency is key!"
+              : "💪 Start your streak today!"}
           </p>
         </div>
       </div>
@@ -185,7 +314,8 @@ const DashboardContent: React.FC = () => {
             </h3>
             <button
               onClick={() => setShowAddModal(true)}
-              className="hidden md:flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-1 rounded-lg transition"
+              disabled={isSubmitting}
+              className="hidden md:flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-1 rounded-lg transition disabled:opacity-50"
             >
               <Plus className="w-4 h-4" /> Log Meal
             </button>
@@ -193,6 +323,7 @@ const DashboardContent: React.FC = () => {
 
           {meals.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 transition-colors">
+              <UtensilsCrossed className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
               <p className="text-gray-400 dark:text-gray-500">
                 Belum ada makanan dicatat.
               </p>
@@ -218,7 +349,7 @@ const DashboardContent: React.FC = () => {
         <AddMealModal
           mealInput={mealInput}
           setMealInput={setMealInput}
-          isAnalyzing={isAnalyzing}
+          isAnalyzing={isAnalyzing || isSubmitting}
           analyzedData={analyzedData}
           setAnalyzedData={setAnalyzedData}
           onAnalyze={handleAnalyze}
