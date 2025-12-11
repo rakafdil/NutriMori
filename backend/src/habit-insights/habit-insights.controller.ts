@@ -36,7 +36,7 @@ export class HabitInsightsController {
     @GetUser('id') userId: string,
     @Query() query: GetHabitInsightDto,
   ): Promise<HabitInsightResponseDto> {
-    return this.habitInsightsService.generateInsight({
+    return (this.habitInsightsService as any).generateInsight({
       ...query,
       userId,
     });

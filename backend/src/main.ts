@@ -31,7 +31,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       frontendUrl,
-      'http://localhost:3000/*',
+      'http://localhost:3000',
       'https://nutri-mori.vercel.app',
     ],
     credentials: true,
