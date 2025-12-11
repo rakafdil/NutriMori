@@ -124,6 +124,9 @@ export class MealTimingPatternDto {
 }
 
 export class HabitInsightResponseDto {
+  @ApiProperty({ description: 'User ID' })
+  userId: string;
+
   @ApiProperty({
     description: 'Analysis period type',
     enum: PeriodType,

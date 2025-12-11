@@ -380,4 +380,98 @@ export class FoodLogsService {
       dailyData,
     };
   }
+
+  async getStreaks(
+    userId: string,
+    endDate: Date = new Date(),
+  ): Promise<{
+    currentStreak: number;
+    longestStreak: number;
+    lastLogDate: Date | null;
+  }> {
+    // Fetch all logs for the user, ordered by date
+    const result = await this.supabase
+      .from('food_logs')
+      .select('created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to get streaks');
+    }
+
+    const logs = result.data || [];
+
+    if (logs.length === 0) {
+      return { currentStreak: 0, longestStreak: 0, lastLogDate: null };
+    }
+
+    // Extract unique dates (normalized to date only, no time)
+    const uniqueDates = new Set<string>();
+    for (const log of logs) {
+      const dateKey = new Date(log.created_at).toISOString().split('T')[0];
+      uniqueDates.add(dateKey);
+    }
+
+    // Sort dates
+    const sortedDates = Array.from(uniqueDates).sort();
+
+    let longestStreak = 1;
+    let currentStreakCount = 1;
+    let tempStreak = 1;
+
+    // Calculate longest streak
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prevDate = new Date(sortedDates[i - 1]);
+      const currDate = new Date(sortedDates[i]);
+
+      // Check if dates are consecutive (difference of 1 day)
+      const diffTime = currDate.getTime() - prevDate.getTime();
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+      if (diffDays === 1) {
+        tempStreak++;
+        longestStreak = Math.max(longestStreak, tempStreak);
+      } else {
+        tempStreak = 1;
+      }
+    }
+
+    // Calculate current streak (from endDate backwards)
+    const endDateKey = endDate.toISOString().split('T')[0];
+    const lastLogDateKey = sortedDates[sortedDates.length - 1];
+    const lastLogDate = new Date(lastLogDateKey);
+
+    // Check if the last log is today or yesterday to have an active streak
+    const endDateObj = new Date(endDateKey);
+    const diffFromEnd =
+      (endDateObj.getTime() - lastLogDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (diffFromEnd > 1) {
+      // Streak is broken (more than 1 day gap)
+      currentStreakCount = 0;
+    } else {
+      // Count backwards from the last log date
+      currentStreakCount = 1;
+      for (let i = sortedDates.length - 2; i >= 0; i--) {
+        const currDate = new Date(sortedDates[i + 1]);
+        const prevDate = new Date(sortedDates[i]);
+
+        const diffTime = currDate.getTime() - prevDate.getTime();
+        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+        if (diffDays === 1) {
+          currentStreakCount++;
+        } else {
+          break;
+        }
+      }
+    }
+
+    return {
+      currentStreak: currentStreakCount,
+      longestStreak: Math.max(longestStreak, currentStreakCount),
+      lastLogDate,
+    };
+  }
 }
