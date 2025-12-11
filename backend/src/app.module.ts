@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth';
-import { FoodItemsModule } from './food-items';
 import { FoodLogsModule } from './food-logs';
 import { HabitInsightsModule } from './habit-insights/habit-insights.module';
 import { NutritionAnalysisModule } from './nutrition-analysis';
@@ -21,7 +20,6 @@ import { UsersModule } from './users';
     AuthModule,
     UsersModule,
     UserPreferencesModule,
-    FoodItemsModule,
     FoodLogsModule,
     NutritionRulesModule,
     HabitInsightsModule,
