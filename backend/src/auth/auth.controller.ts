@@ -35,17 +35,11 @@ export class AuthController {
     @Res({ passthrough: true }) res: express.Response,
   ) {
     const result = await this.authService.login(dto); // returns tokens & user
-    // set httpOnly cookie for refresh token
-    res.cookie('nutrimori_refresh_token', result.refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      path: '/',
-    });
-    // optionally set access token as httpOnly short-lived, or return access token in body
+
+    // cookies removed — tokens are returned in the response body so the client can handle storage
     return {
       access_token: result.access_token,
+      refresh_token: result.refresh_token,
       success: true,
       message: 'Login successful',
       data: result,
@@ -80,12 +74,34 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Headers('authorization') authorization: string) {
-    const token = authorization?.replace('Bearer ', '');
-    if (token === undefined) {
-      throw new Error('No vaild session found');
+  async logout(
+    @Headers('authorization') authorization: string,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const token = authorization?.replace('Bearer ', '') || null;
+
+    // attempt server-side logout if token provided
+    if (token) {
+      try {
+        await this.authService.logout(token);
+      } catch (err) {
+        // swallow service errors to ensure cookies are cleared client-side
+        // optionally log the error
+        // console.error('Logout error:', err);
+      }
     }
-    await this.authService.logout(token);
+
+    // clear potential auth cookies on client
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOptions = {
+      path: '/',
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax' as const,
+    };
+    res.clearCookie('nutrimori_refresh_token', cookieOptions);
+    res.clearCookie('nutrimori_access_token', cookieOptions);
+
     return {
       success: true,
       message: 'Logged out successfully',

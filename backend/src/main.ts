@@ -1,6 +1,7 @@
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -20,6 +21,10 @@ async function bootstrap() {
   logger.log(
     `Database URL: ${process.env.SUPABASE_URL ? 'Configured' : 'Not configured'}`,
   );
+
+  // Use cookie parser middleware
+  app.use(cookieParser());
+  logger.log('Cookie parser enabled');
 
   // Enable CORS
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';

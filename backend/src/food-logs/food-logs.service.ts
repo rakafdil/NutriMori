@@ -1,22 +1,21 @@
 import {
   Injectable,
-  NotFoundException,
   InternalServerErrorException,
-  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PostgrestError } from '@supabase/supabase-js'; // Import this type
 import { SupabaseService } from '../supabase';
 import {
   CreateFoodLogDto,
+  CreateFoodLogItemDto,
   LogFoodInputDto,
   UpdateFoodLogDto,
-  CreateFoodLogItemDto,
 } from './dto';
 import {
-  FoodLogWithRelations,
   DailySummary,
-  WeeklySummary,
+  FoodLogWithRelations,
   MealType,
+  WeeklySummary,
 } from './types';
 
 @Injectable()
@@ -41,20 +40,23 @@ export class FoodLogsService {
     throw new InternalServerErrorException(fallbackMessage);
   }
 
-  async create(createDto: CreateFoodLogDto): Promise<FoodLogWithRelations> {
+  async create(
+    userId: string,
+    createDto: CreateFoodLogDto,
+  ): Promise<FoodLogWithRelations> {
     // Verify user exists
     const userResult = await this.supabase
       .from('users')
       .select('id')
-      .eq('id', createDto.userId)
+      .eq('id', userId)
       .single();
 
     if (userResult.error || !userResult.data) {
-      throw new NotFoundException(`User with ID ${createDto.userId} not found`);
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
     const insertData = {
-      user_id: createDto.userId,
+      user_id: userId,
       raw_text: createDto.rawText,
       meal_type: createDto.mealType,
       parsed_by_llm: createDto.parsedByLlm ?? false,
@@ -79,20 +81,23 @@ export class FoodLogsService {
     return result.data as FoodLogWithRelations;
   }
 
-  async logFood(input: LogFoodInputDto): Promise<FoodLogWithRelations> {
+  async logFood(
+    userId: string,
+    input: LogFoodInputDto,
+  ): Promise<FoodLogWithRelations> {
     // Verify user exists
     const userResult = await this.supabase
       .from('users')
       .select('id')
-      .eq('id', input.userId)
+      .eq('id', userId)
       .single();
 
     if (userResult.error || !userResult.data) {
-      throw new NotFoundException(`User with ID ${input.userId} not found`);
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
     const insertData = {
-      user_id: input.userId, // Fixed casing from UserId to userId based on standard conventions
+      user_id: userId,
       raw_text: input.text,
       meal_type: input.mealType,
       parsed_by_llm: false,
@@ -120,10 +125,11 @@ export class FoodLogsService {
   }
 
   async createFoodLogItem(
+    userId: string,
     itemDto: CreateFoodLogItemDto,
   ): Promise<FoodLogWithRelations> {
     // Verify log exists and belongs to user
-    await this.findOne(itemDto.logId);
+    await this.findOne(userId, itemDto.logId);
 
     const insertData = {
       log_id: itemDto.logId,
@@ -146,7 +152,7 @@ export class FoodLogsService {
     }
 
     // Return the full log with items
-    return this.findOne(itemDto.logId);
+    return this.findOne(userId, itemDto.logId);
   }
 
   async findAll(options?: {
@@ -203,11 +209,12 @@ export class FoodLogsService {
     return (result.data || []) as FoodLogWithRelations[];
   }
 
-  async findOne(id: string): Promise<FoodLogWithRelations> {
+  async findOne(userId: string, id: string): Promise<FoodLogWithRelations> {
     const result = await this.supabase
       .from('food_logs')
       .select('*, food_log_items(*)')
       .eq('log_id', id)
+      .eq('user_id', userId)
       .single();
 
     if (result.error) {
@@ -226,10 +233,11 @@ export class FoodLogsService {
   }
 
   async update(
+    userId: string,
     id: string,
     updateDto: UpdateFoodLogDto,
   ): Promise<FoodLogWithRelations> {
-    await this.findOne(id);
+    await this.findOne(userId, id);
 
     const updateData: Record<string, unknown> = {};
     if (updateDto.rawText !== undefined)
@@ -259,13 +267,14 @@ export class FoodLogsService {
     return result.data as FoodLogWithRelations;
   }
 
-  async remove(id: string): Promise<FoodLogWithRelations> {
-    const log = await this.findOne(id);
+  async remove(userId: string, id: string): Promise<FoodLogWithRelations> {
+    const log = await this.findOne(userId, id);
 
     const result = await this.supabase
       .from('food_logs')
       .delete()
       .eq('log_id', id)
+      .eq('user_id', userId)
       .select('*, food_log_items(*)')
       .single();
 
@@ -369,6 +378,100 @@ export class FoodLogsService {
       endDate,
       totalLogs: typedLogs.length,
       dailyData,
+    };
+  }
+
+  async getStreaks(
+    userId: string,
+    endDate: Date = new Date(),
+  ): Promise<{
+    currentStreak: number;
+    longestStreak: number;
+    lastLogDate: Date | null;
+  }> {
+    // Fetch all logs for the user, ordered by date
+    const result = await this.supabase
+      .from('food_logs')
+      .select('created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true });
+
+    if (result.error) {
+      this.handleSupabaseError(result.error, 'Failed to get streaks');
+    }
+
+    const logs = result.data || [];
+
+    if (logs.length === 0) {
+      return { currentStreak: 0, longestStreak: 0, lastLogDate: null };
+    }
+
+    // Extract unique dates (normalized to date only, no time)
+    const uniqueDates = new Set<string>();
+    for (const log of logs) {
+      const dateKey = new Date(log.created_at).toISOString().split('T')[0];
+      uniqueDates.add(dateKey);
+    }
+
+    // Sort dates
+    const sortedDates = Array.from(uniqueDates).sort();
+
+    let longestStreak = 1;
+    let currentStreakCount = 1;
+    let tempStreak = 1;
+
+    // Calculate longest streak
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prevDate = new Date(sortedDates[i - 1]);
+      const currDate = new Date(sortedDates[i]);
+
+      // Check if dates are consecutive (difference of 1 day)
+      const diffTime = currDate.getTime() - prevDate.getTime();
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+      if (diffDays === 1) {
+        tempStreak++;
+        longestStreak = Math.max(longestStreak, tempStreak);
+      } else {
+        tempStreak = 1;
+      }
+    }
+
+    // Calculate current streak (from endDate backwards)
+    const endDateKey = endDate.toISOString().split('T')[0];
+    const lastLogDateKey = sortedDates[sortedDates.length - 1];
+    const lastLogDate = new Date(lastLogDateKey);
+
+    // Check if the last log is today or yesterday to have an active streak
+    const endDateObj = new Date(endDateKey);
+    const diffFromEnd =
+      (endDateObj.getTime() - lastLogDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (diffFromEnd > 1) {
+      // Streak is broken (more than 1 day gap)
+      currentStreakCount = 0;
+    } else {
+      // Count backwards from the last log date
+      currentStreakCount = 1;
+      for (let i = sortedDates.length - 2; i >= 0; i--) {
+        const currDate = new Date(sortedDates[i + 1]);
+        const prevDate = new Date(sortedDates[i]);
+
+        const diffTime = currDate.getTime() - prevDate.getTime();
+        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+        if (diffDays === 1) {
+          currentStreakCount++;
+        } else {
+          break;
+        }
+      }
+    }
+
+    return {
+      currentStreak: currentStreakCount,
+      longestStreak: Math.max(longestStreak, currentStreakCount),
+      lastLogDate,
     };
   }
 }

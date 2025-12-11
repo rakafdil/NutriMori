@@ -369,6 +369,7 @@ class AuthService {
         ...options.headers,
         Authorization: `Bearer ${token}`,
       },
+      credentials: "include",
     });
 
     // If unauthorized, try refreshing token

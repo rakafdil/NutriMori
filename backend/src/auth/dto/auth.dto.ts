@@ -1,9 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  IsStrongPassword,
+    IsEmail,
+    IsOptional,
+    IsString,
+    IsStrongPassword,
 } from 'class-validator';
 
 export class RegisterDto {
@@ -112,30 +112,4 @@ export class AuthResponseDto {
     example: 'Please check your email to confirm your account',
   })
   message?: string;
-}
-
-export class JwtPayloadDto {
-  @ApiProperty({
-    description: 'User ID (subject)',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  sub: string;
-
-  @ApiProperty({
-    description: 'User email',
-    example: 'user@example.com',
-  })
-  email: string;
-
-  @ApiProperty({
-    description: 'Issued at timestamp',
-    example: 1638360000,
-  })
-  iat: number;
-
-  @ApiProperty({
-    description: 'Expiration timestamp',
-    example: 1638446400,
-  })
-  exp: number;
 }

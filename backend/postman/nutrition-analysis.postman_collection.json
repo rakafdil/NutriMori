@@ -1,0 +1,119 @@
+{
+    "info": {
+        "name": "NutriMori - Nutrition Analysis",
+        "description": "Collection to test Nutrition Analysis API endpoints",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{access_token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "Create Nutrition Analysis (POST)",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"foodLogId\": \"{{sample_food_log_id}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/nutrition-analysis",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "nutrition-analysis"
+                    ]
+                },
+                "description": "Create a nutrition analysis for a given food log. Requires Bearer token."
+            },
+            "response": []
+        },
+        {
+            "name": "Get Analysis By Food Log ID (GET)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/nutrition-analysis/food-log/{{sample_food_log_id}}",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "nutrition-analysis",
+                        "food-log",
+                        "{{sample_food_log_id}}"
+                    ]
+                },
+                "description": "Retrieve previously created analysis by food log ID. Requires Bearer token."
+            },
+            "response": []
+        },
+        {
+            "name": "Get User Analysis History (GET)",
+            "request": {
+                "method": "GET",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "url": {
+                    "raw": "{{base_url}}/nutrition-analysis/history?limit=10",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "nutrition-analysis",
+                        "history"
+                    ],
+                    "query": [
+                        {
+                            "key": "limit",
+                            "value": "10",
+                            "description": "Optional limit of records"
+                        }
+                    ]
+                },
+                "description": "Get recent nutrition analyses for the authenticated user. Requires Bearer token."
+            },
+            "response": []
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "https://nutrimori.vercel.app/api",
+            "type": "string"
+        },
+        {
+            "key": "access_token",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "sample_food_log_id",
+            "value": "123e4567-e89b-12d3-a456-426614174000",
+            "type": "string"
+        }
+    ]
+}

@@ -91,24 +91,29 @@ class UserService {
     return localStorage.getItem(AUTH_STORAGE_KEY);
   }
 
-  // Make authenticated API call
   private async authenticatedFetch(
     url: string,
     options: RequestInit = {}
   ): Promise<Response> {
     const token = this.getAuthToken();
 
-    if (!token) {
-      throw new Error("No authentication token available");
+    const headers = {
+      "Content-Type": "application/json",
+      ...((options && options.headers) || {}),
+    } as Record<string, string>;
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
-    return fetch(url, {
+    const fetchOptions: RequestInit = {
       ...options,
-      headers: {
-        ...options.headers,
-        Authorization: `Bearer ${token}`,
-      },
-    });
+      headers,
+      // ensure cookies are sent (so HttpOnly cookie auth works). callers can override.
+      credentials: (options && options.credentials) || "include",
+    };
+
+    return fetch(url, fetchOptions);
   }
 }
 
