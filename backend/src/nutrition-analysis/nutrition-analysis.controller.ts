@@ -1,4 +1,5 @@
 import {
+    BadRequestException,
     Body,
     Controller,
     Get,
@@ -45,9 +46,13 @@ export class NutritionAnalysisController {
         description: 'Food log not found',
     })
     async analyzeNutrition(
-        @GetUser('sub') userId: string,
+        @GetUser('id') userId: string,
         @Body() createDto: CreateNutritionAnalysisDto,
     ): Promise<NutritionAnalysisResponseDto> {
+        console.log('DEBUG Controller userId:', userId); // Tambahkan ini
+        if (!userId) {
+            throw new BadRequestException('User ID is missing from token');
+        }
         return this.nutritionAnalysisService.analyzeNutrition(userId, createDto);
     }
 
@@ -71,7 +76,7 @@ export class NutritionAnalysisController {
         description: 'Analysis not found',
     })
     async getAnalysisByFoodLogId(
-        @GetUser('sub') userId: string,
+        @GetUser('id') userId: string,
         @Param('foodLogId') foodLogId: string,
     ): Promise<NutritionAnalysisResponseDto> {
         return this.nutritionAnalysisService.getAnalysisByFoodLogId(
@@ -97,9 +102,10 @@ export class NutritionAnalysisController {
         type: [NutritionAnalysisResponseDto],
     })
     async getUserHistory(
-        @GetUser('sub') userId: string,
+        @GetUser('id') userId: string,
         @Query('limit') limit?: number,
     ): Promise<NutritionAnalysisResponseDto[]> {
+        console.log(`DEBUG getUserHistory - User: ${userId}, Limit: ${limit} (${typeof limit})`);
         return this.nutritionAnalysisService.getUserAnalysisHistory(
             userId,
             limit || 10,
