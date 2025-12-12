@@ -9,8 +9,28 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent # Folder Root 'NutriMor
 RAW_PATH = BASE_DIR / "ai" / "data raw" / "dataset_gabungan.csv"
 OUT_PATH = BASE_DIR / "ai" / "data" / "data pangan bersih.parquet"
 
+def clean_and_group_name(text):
+    """
+    Logika Hybrid untuk deduplikasi:
+    1. Jika ada koma, ambil kata sebelum koma.
+    2. Jika tidak ada koma, ambil 2 kata pertama.
+    """
+    text = str(text).strip()
+    
+    # KASUS 1: Jika ada koma, ambil kata di depan koma
+    if ',' in text:
+        return text.split(',')[0].strip().title()
+    
+    # KASUS 2: Jika TIDAK ada koma, ambil 2 kata pertama
+    words = text.split()
+    if len(words) >= 2:
+        return f"{words[0]} {words[1]}".title()
+    
+    # Jika cuma 1 kata, kembalikan apa adanya
+    return text.title()
+
 def normalize_name(name: str) -> str:
-    """Membersihkan nama makanan dari karakter aneh dan spasi berlebih."""
+    """Membersihkan nama makanan dari karakter aneh dan spasi berlebih untuk keperluan AI."""
     if not isinstance(name, str):
         return ""
     name = name.lower().strip()
@@ -43,8 +63,32 @@ def main():
         return
 
     df = pd.read_csv(RAW_PATH)
+    print(f"📊 Total baris awal: {len(df)}")
 
-    # Daftar Kolom Numerik (Wajib sama dengan datasetmu)
+    # ---------------------------------------------------------
+    # TAHAP 1: DEDUPLIKASI & PEMBERSIHAN BARIS (LOGIKA BARU)
+    # ---------------------------------------------------------
+    
+    # 1. Hapus baris sampah/anomali
+    df = df[df['Nama Bahan Makanan'] != '(g)']
+
+    # 2. Terapkan logika grouping Hybrid
+    print("🧹 Membersihkan duplikat dengan logika hybrid...")
+    df['temp_group_key'] = df['Nama Bahan Makanan'].apply(clean_and_group_name)
+    
+    # 3. Hapus duplikat, simpan yang pertama ditemukan
+    df = df.drop_duplicates(subset=['temp_group_key'], keep='first')
+    
+    # 4. Hapus kolom bantuan
+    df = df.drop(columns=['temp_group_key'])
+    
+    print(f"✅ Data setelah deduplikasi: {len(df)} baris")
+
+    # ---------------------------------------------------------
+    # TAHAP 2: NORMALISASI DATA & FORMATTING
+    # ---------------------------------------------------------
+
+    # Daftar Kolom Numerik
     numeric_cols = [
         "Energi", "Protein", "Lemak Total", "Karbohidrat", "Gula", "Serat",
         "Kalsium", "Fosfor", "Besi", "Magnesium", "Kalium", "Natrium", "Seng", "Tembaga",
@@ -62,11 +106,13 @@ def main():
             
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
         else:
-            print(f"⚠️ Warning: Kolom '{col}' tidak ada di CSV. Diisi 0.")
+            # print(f"⚠️ Warning: Kolom '{col}' tidak ada di CSV. Diisi 0.") 
             df[col] = 0.0
 
-    print("🔄 Membersihkan nama makanan...")
+    print("🔄 Membersihkan nama makanan & membuat food_text...")
+    # Normalisasi nama untuk pencarian/AI
     df["nama_clean"] = df["Nama Bahan Makanan"].apply(normalize_name)
+    # Membuat teks gabungan untuk embedding
     df["food_text"] = df.apply(build_food_text, axis=1)
 
     # Simpan
@@ -75,6 +121,7 @@ def main():
 
     print("\n" + "="*50)
     print(f"SUKSES! File bersih tersimpan di:\n{OUT_PATH}")
+    print(f"Total data akhir: {len(df)}")
     print("="*50)
 
 if __name__ == "__main__":
