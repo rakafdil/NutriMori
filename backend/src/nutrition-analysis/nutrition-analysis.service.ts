@@ -248,6 +248,10 @@ export class NutritionAnalysisService {
 
         const total = proteinCal + carbCal + fatCal;
 
+        if (total === 0) {
+            return { protein: 0, carbs: 0, fat: 0 };
+        }
+
         return {
             protein: Math.round((proteinCal / total) * 100),
             carbs: Math.round((carbCal / total) * 100),
@@ -295,7 +299,8 @@ export class NutritionAnalysisService {
         const toPercent = (val: number, dv: number) => {
             if (val <= 0 || !dv) return undefined;
             const pct = Math.round((val / dv) * 100);
-            return pct > 0 ? `${pct}%` : '<1%';
+            if (pct > 300) return '>300%';
+            return `${pct}%`;
         };
 
         // Default DV jika AKG tidak ditemukan (Fallback ke standar umum)
@@ -309,6 +314,7 @@ export class NutritionAnalysisService {
         if (total.calcium > 0) result.calcium = toPercent(total.calcium, akg?.kalsium_mg || defaults.calcium);
         if (total.vitamin_a > 0) result.vitamin_a = toPercent(total.vitamin_a, akg?.vit_a_re || defaults.vit_a);
         if (total.vitamin_d > 0) result.vitamin_d = toPercent(total.vitamin_d, akg?.vit_d_mcg || defaults.vit_d);
+        if (total.vitamin_b12 > 0)  result.vitamin_b12 = toPercent(total.vitamin_b12, akg?.vit_b12_mcg || defaults.vit_b12);
         
         if (total.potassium > 0) result['potassium'] = toPercent(total.potassium, akg?.kalium_mg || defaults.potassium);
         if (total.magnesium > 0) result['magnesium'] = toPercent(total.magnesium, akg?.magnesium_mg || defaults.magnesium);
@@ -562,13 +568,17 @@ data?.forEach((i: any) => {
         // --- DYNAMIC LOGIC BASED ON AKG ---
         if (akg) {
             // Health Tags
-            if (nutrition.protein >= (akg.protein_g * 0.3)) tags.push('High Protein'); // >30% of daily need
+            const proteinDensity = nutrition.protein / nutrition.calories * 100;
+            if (proteinDensity >= 20) tags.push('High Protein');
             if (nutrition.fiber && nutrition.fiber >= (akg.serat_g * 0.3)) tags.push('High Fiber');
             
             // Warnings
             // Batas Natrium (Sodium) biasanya 2000-2300mg, tapi kita pakai data AKG jika ada
             const sodiumLimit = akg.natrium_mg || 2000;
-            if (nutrition.sodium && nutrition.sodium > (sodiumLimit * 0.4)) warnings.push('High Sodium (Meal)'); // >40% daily limit in one meal
+            const mealSodiumLimit = sodiumLimit * 0.33; // 1/3 harian
+            if (nutrition.sodium && nutrition.sodium > mealSodiumLimit) {
+                warnings.push('High Sodium');
+            } // >40% daily limit in one meal
 
             // Gula (Sugar) - AKG Indonesia 2019 tidak spesifik gula tambahan, tapi WHO saran <50g (atau <10% energi)
             // Kita pakai estimasi 50g sehari
@@ -581,7 +591,9 @@ data?.forEach((i: any) => {
         }
 
         // Additional static checks
-        if (nutrition.sugar <= 5) tags.push('Low Sugar');
+        if (nutrition.sugar > 0 && nutrition.sugar <= 5) {
+            tags.push('Low Sugar');
+        }
         if (nutrition.calories <= 500 && nutrition.protein > 15) tags.push('Balanced Meal');
         if (nutrition.cholesterol && nutrition.cholesterol > 300) warnings.push('High Cholesterol');
 
@@ -680,8 +692,7 @@ data?.forEach((i: any) => {
         const map = new Map<string, number>();
 
         data.forEach(item => {
-            const day = new Date(item.created_at)
-                .toLocaleDateString('en-US', { weekday: 'short' }); // Mon, Tue
+            const day = item.created_at.slice(0, 10); // YYYY-MM-DD
 
             map.set(day, (map.get(day) || 0) + item.total_calories);
         });
