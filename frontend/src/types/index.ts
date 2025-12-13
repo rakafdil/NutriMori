@@ -1,5 +1,6 @@
 export interface UserProfile {
   name?: string;
+  id?: string;
   username: string;
   age?: number;
   height?: number;
@@ -47,6 +48,7 @@ export interface Meal {
   name: string;
   timestamp: Date;
   nutrition: NutritionInfo;
+  mealType?: "breakfast" | "lunch" | "dinner" | "snack";
 }
 
 export interface ChatMessage {

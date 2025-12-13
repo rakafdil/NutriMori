@@ -1,8 +1,9 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Minus, Plus, X } from "lucide-react";
 import { MatchResult } from "@/types";
 import { VerifiedFood, searchFoods } from "@/services/food-matcher.service";
+import { createPortal } from "react-dom";
 
 interface FoodVerificationModalProps {
   matchResults: MatchResult[];
@@ -19,7 +20,25 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
 }) => {
   const [visible, setVisible] = useState(false);
   const closeTimeoutRef = useRef<number | null>(null);
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [dropdownPos, setDropdownPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
+  const toggleDropdown = (i: number) => {
+    if (openDropdown === i) {
+      setOpenDropdown(null);
+      setDropdownPos(null);
+      return;
+    }
+    const btn = buttonRefs.current[i];
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    setDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+    setOpenDropdown(i);
+  };
   // State for each candidate's selection
   const [selections, setSelections] = useState<VerifiedFood[]>(() =>
     matchResults.map((m) => ({
@@ -96,6 +115,22 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
     onConfirm(selections.filter((s) => s.selectedFoodId !== 0));
   };
 
+  useLayoutEffect(() => {
+    const onResize = () => {
+      if (openDropdown == null) return;
+      const btn = buttonRefs.current[openDropdown];
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onResize, true);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onResize, true);
+    };
+  }, [openDropdown]);
+
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${
@@ -133,7 +168,7 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
               className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-400 dark:text-gray-500">
+                <span className="text-xl text-gray-400 dark:text-white">
                   "{sel.candidate}"
                 </span>
                 <button
@@ -147,9 +182,10 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
               {/* Dropdown selector */}
               <div className="relative mb-3">
                 <button
-                  onClick={() =>
-                    setOpenDropdown(openDropdown === index ? null : index)
-                  }
+                  ref={(el) => {
+                    buttonRefs.current[index] = el;
+                  }}
+                  onClick={() => toggleDropdown(index)}
                   className="w-full flex items-center justify-between bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-left"
                 >
                   <span className="font-medium dark:text-white">
@@ -158,48 +194,66 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 </button>
 
-                {openDropdown === index && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    <input
-                      type="text"
-                      placeholder="Cari makanan..."
-                      value={searchQuery}
-                      onChange={(e) => handleSearch(e.target.value)}
-                      className="w-full px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-transparent dark:text-white focus:outline-none"
-                      autoFocus
-                    />
-                    {/* Original matches */}
-                    {matchResults[index]?.match_result.map((m) => (
-                      <button
-                        key={m.food_id}
-                        onClick={() => handleSelectFood(index, m)}
-                        className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
-                      >
-                        <span className="dark:text-white">{m.nama}</span>
-                        <span className="text-xs text-gray-400">
-                          {Math.round(m.similarity * 100)}%
-                        </span>
-                      </button>
-                    ))}
-                    {/* Search results */}
-                    {searchResults.length > 0 && (
-                      <>
-                        <div className="px-3 py-1 text-xs text-gray-400 bg-gray-50 dark:bg-gray-900">
-                          Hasil pencarian
-                        </div>
-                        {searchResults.map((r) => (
-                          <button
-                            key={r.food_id}
-                            onClick={() => handleSelectFood(index, r)}
-                            className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white"
-                          >
-                            {r.nama}
-                          </button>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )}
+                {openDropdown === index &&
+                  dropdownPos &&
+                  createPortal(
+                    <div
+                      style={{
+                        position: "fixed",
+                        top: dropdownPos.top,
+                        left: dropdownPos.left,
+                        width: dropdownPos.width,
+                        zIndex: 9999,
+                      }}
+                      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Cari makanan..."
+                        value={searchQuery}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        className="w-full px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-transparent dark:text-white focus:outline-none"
+                        autoFocus
+                      />
+                      {matchResults[index]?.match_result.map((m) => (
+                        <button
+                          key={m.food_id}
+                          onClick={() => {
+                            handleSelectFood(index, m);
+                            setOpenDropdown(null);
+                            setDropdownPos(null);
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between"
+                        >
+                          <span className="dark:text-white">{m.nama}</span>
+                          <span className="text-xs text-gray-400">
+                            {Math.round(m.similarity * 100)}%
+                          </span>
+                        </button>
+                      ))}
+                      {searchResults.length > 0 && (
+                        <>
+                          <div className="px-3 py-1 text-xs text-gray-400 bg-gray-50 dark:bg-gray-900">
+                            Hasil pencarian
+                          </div>
+                          {searchResults.map((r) => (
+                            <button
+                              key={r.food_id}
+                              onClick={() => {
+                                handleSelectFood(index, r);
+                                setOpenDropdown(null);
+                                setDropdownPos(null);
+                              }}
+                              className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white"
+                            >
+                              {r.nama}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                    </div>,
+                    document.body
+                  )}
               </div>
 
               {/* Quantity controls */}

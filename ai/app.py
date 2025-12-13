@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sys
 import os
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -29,9 +30,27 @@ sys.path.append(str(current_file.parent))
 app = Flask(__name__)
 CORS(app)
 
-# --- LAZY INITIALIZATION ---
-matcher = None
-nutrition_calc = None
+# --- EAGER INITIALIZATION AT STARTUP ---
+PRELOAD_MODELS = os.environ.get("PRELOAD_MODELS", "1") == "1"
+
+if PRELOAD_MODELS:
+    print("⏳ Pre-loading models... (this may take a moment)")
+    
+    from core.matcher import FoodMatcher, get_embedding_model
+    from core.nutrition import NutritionCalculator
+    
+    # Pre-load embedding model first (shared across instances)
+    get_embedding_model()
+    
+    matcher = FoodMatcher()
+    print("✅ FoodMatcher loaded")
+    
+    nutrition_calc = NutritionCalculator()
+    print("✅ NutritionCalculator loaded")
+else:
+    print("⚡ Lazy loading mode (PRELOAD_MODELS=0)")
+    matcher = None
+    nutrition_calc = None
 
 def get_matcher():
     global matcher
@@ -47,6 +66,122 @@ def get_nutrition_calc():
         nutrition_calc = NutritionCalculator()
     return nutrition_calc
 
+# --- CANDIDATE PARSING UTILITY ---
+
+def parse_candidates(raw_text: str) -> list[str]:
+    """
+    Split raw input into independent food candidates.
+    
+    Handles common separators: "dan", "lalu", ",", "+", "&"
+    Preserves original phrase per candidate.
+    
+    Args:
+        raw_text: Raw user input string (e.g., "tahu telor dan 3 tempe, nasi goreng")
+    
+    Returns:
+        List of candidate strings, trimmed and non-empty
+    """
+    if not raw_text or not raw_text.strip():
+        return []
+    
+    # Regex pattern for separators (case-insensitive for words)
+    # Matches: "dan", "lalu", ",", "+", "&"
+    separator_pattern = r'\s+dan\s+|\s+lalu\s+|,|\+|&'
+    
+    # Split by separators
+    candidates = re.split(separator_pattern, raw_text, flags=re.IGNORECASE)
+    
+    # Trim whitespace and filter empty strings
+    candidates = [c.strip() for c in candidates if c and c.strip()]
+    
+    return candidates
+
+
+def match_candidate(candidate: str, top_n: int = 5) -> dict:
+    """
+    Process a single candidate through the food matcher with 2-attempt strategy.
+    
+    Attempt 1: Direct database search
+    Attempt 2: LLM refinement (Gemini) if score < 0.5
+    
+    Args:
+        candidate: Single food candidate string
+        top_n: Maximum number of results to return (default 5)
+    
+    Returns:
+        Dict containing match results and metadata
+    """
+    if not candidate or not candidate.strip():
+        return {"matches": [], "method": "none"}
+    
+    try:
+        from core.llm_helper import generate_food_candidates
+        
+        food_matcher = get_matcher()
+        final_matches = []
+        used_method = "unknown"
+        search_terms = []
+        
+        # Loop maksimal 2 kali (Direct Match -> LLM Fallback)
+        for attempt in range(1, 3):
+            print(f"   🔄 Attempt {attempt}/2 for '{candidate}'")
+            
+            if attempt == 1:
+                # STRATEGI 1: Direct database search
+                print(f"      👉 Strategy: Direct Database Search")
+                search_terms = [candidate]
+                used_method = "direct_match"
+            else:
+                # STRATEGI 2: LLM Refinement (Gemini)
+                print(f"      👉 Strategy: LLM Refinement (Gemini)")
+                search_terms = generate_food_candidates(candidate)
+                print(f"      🤖 LLM Terms: {search_terms}")
+                used_method = "llm_enhanced"
+            
+            # Proses Matching ke Database
+            current_matches = food_matcher.match_with_llm_candidates(search_terms, top_final=top_n)
+            
+            if current_matches:
+                top_score = current_matches[0].get('similarity', 0)
+                print(f"      📊 Best Score: {top_score:.4f}")
+                
+                # RULE: Jika score >= 0.5, valid dan RETURN
+                if top_score >= 0.5:
+                    print(f"      ✅ Match Found! Stopping loop.")
+                    final_matches = current_matches
+                    break
+                else:
+                    print(f"      ⚠️ Score < 0.5. Trying next strategy...")
+                    # Jika attempt terakhir, pakai hasilnya
+                    if attempt == 2:
+                        print(f"      ❌ Last attempt. Returning best effort.")
+                        final_matches = current_matches
+            else:
+                print(f"      ❌ No matches found in DB.")
+        
+        # Format results to expected structure
+        results = []
+        for match in final_matches:
+            results.append({
+                "food_id": match.get("food_id", match.get("id")),
+                "nama": match.get("nama", match.get("name", "")),
+                "similarity": round(match.get("similarity", 0), 4)
+            })
+        
+        # Sort by similarity descending
+        results.sort(key=lambda x: x["similarity"], reverse=True)
+        
+        return {
+            "matches": results[:top_n],
+            "method": used_method,
+            "search_terms": search_terms
+        }
+    
+    except Exception as e:
+        print(f"❌ Error matching candidate '{candidate}': {e}")
+        return {"matches": [], "method": "error", "error": str(e)}
+
+
 print(f"🚀 App ready (mode: {'supabase' if USE_SUPABASE else 'local'})")
 
 # --- ROUTES ---
@@ -58,6 +193,71 @@ def health_check():
         'service': 'NutriMori AI Service',
         'mode': 'supabase' if USE_SUPABASE else 'local'
     })
+
+
+@app.route('/api/match-foods', methods=['POST'])
+def match_foods():
+    """
+    Parse raw food input and return structured match results.
+    
+    Each food candidate is processed independently by the food matcher.
+    Uses 2-attempt strategy: Direct Match -> LLM Fallback (Gemini)
+    
+    Request Body:
+        { "text": "tahu telor dan 3 tempe, nasi goreng" }
+    
+    Response:
+        [
+            {
+                "candidate": "tahu telor",
+                "match_result": [
+                    { "food_id": 123, "nama": "Tahu", "similarity": 0.96 },
+                    ...
+                ],
+                "method": "direct_match"
+            },
+            ...
+        ]
+    """
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data:
+            return jsonify({'error': 'Missing text field'}), 400
+        
+        raw_text = data['text']
+        top_n = data.get('limit', 5)  # Optional limit parameter
+        
+        print(f"\n📥 Match Foods Request: '{raw_text}'")
+        
+        # Step 1: Parse candidates from raw input
+        candidates = parse_candidates(raw_text)
+        print(f"📋 Parsed Candidates: {candidates}")
+        
+        if not candidates:
+            return jsonify([]), 200
+        
+        # Step 2: Process each candidate independently with 2-attempt strategy
+        results = []
+        for candidate in candidates:
+            print(f"\n🔍 Processing candidate: '{candidate}'")
+            
+            match_data = match_candidate(candidate, top_n=top_n)
+            
+            results.append({
+                "candidate": candidate,
+                "match_result": match_data.get("matches", []),
+                "method": match_data.get("method", "unknown"),
+                "search_terms": match_data.get("search_terms", [])
+            })
+            
+            print(f"   ✅ Found {len(match_data.get('matches', []))} matches (method: {match_data.get('method')})")
+        
+        return jsonify(results), 200
+        
+    except Exception as e:
+        print(f"❌ Server Error in match_foods: {e}")
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/parse-food', methods=['POST'])
 def parse_food():
@@ -80,48 +280,36 @@ def parse_food():
         used_method = "unknown"
         candidates = []
 
-        # Loop maksimal 2 kali
-        # Attempt 1: Direct Database Search (Tanpa LLM)
-        # Attempt 2: LLM Refinement (Kalau Attempt 1 gagal)
         for attempt in range(1, 3):
             print(f"\n🔄 Attempt {attempt}/2 processing...")
             
             if attempt == 1:
-                # STRATEGI 1: Pakai input mentah user
                 print("   👉 Strategy: Direct Database Search")
                 candidates = [text] 
                 used_method = "direct_match"
             else:
-                # STRATEGI 2: Tanya LLM (Gemini)
                 print("   👉 Strategy: LLM Refinement (Gemini)")
-                # Kalau gagal di attempt 1, kita minta bantuan AI
                 candidates = generate_food_candidates(text)
                 print(f"   🤖 LLM Candidates: {candidates}")
                 used_method = "llm_enhanced"
 
-            # Proses Matching ke Database
             current_matches = get_matcher().match_with_llm_candidates(candidates, top_final=5)
             
-            # Cek Similarity Score
             if current_matches:
                 top_score = current_matches[0]['similarity']
                 print(f"   📊 Best Score: {top_score:.4f}")
 
-                # RULE: Jika score >= 0.5, kita anggap valid dan RETURN
                 if top_score >= 0.5:
                     print("   ✅ Match Found! Stopping loop.")
                     final_matches = current_matches
-                    break # Keluar dari loop
+                    break
                 else:
                     print("   ⚠️ Score < 0.5. Discarding results.")
-                    # Jika ini attempt terakhir, terpaksa kita pakai hasilnya (atau kosongkan)
                     if attempt == 2:
                         print("   ❌ Last attempt failed to get high score. Returning best effort.")
                         final_matches = current_matches
             else:
                 print("   ❌ No matches found in DB.")
-        
-        # ---------------------------------------------------------
 
         if not final_matches:
             return jsonify({
@@ -130,10 +318,8 @@ def parse_food():
                 'input': text
             }), 404
         
-        # 3. Calculate Nutrition (Dari hasil final_matches)
         nutrition = get_nutrition_calc().get_nutrition_smart(final_matches, qty, unit)
         
-        # 4. Format Output
         output_nutrisi = {
             "nama_makanan": nutrition.get('nama_pilihan', 'Unknown'),
             "porsi_display": f"{qty} {unit}",
@@ -149,9 +335,9 @@ def parse_food():
         return jsonify({
             'success': True,
             'input': {'text': text, 'quantity': qty, 'unit': unit},
-            'method_used': used_method, # Info apakah pakai direct atau llm
+            'method_used': used_method,
             'candidates': candidates,
-            'matches': final_matches[:5], # Kembalikan top 5
+            'matches': final_matches[:5],
             'nutrition': output_nutrisi,
             'metadata': {
                 'logic': nutrition.get('metode'),

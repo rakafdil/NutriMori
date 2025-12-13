@@ -9,7 +9,7 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentSection }) => {
-  const navItems = ["home", "features", "manifesto", "pricing"];
+  const navItems = ["home", "features", "manifesto"];
 
   return (
     <nav className="flex justify-between items-center p-6 max-w-7xl mx-auto w-full">

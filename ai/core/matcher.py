@@ -7,6 +7,35 @@ from pathlib import Path
 IS_VERCEL = os.environ.get("VERCEL", "0") == "1"
 USE_SUPABASE = IS_VERCEL or os.environ.get("USE_SUPABASE", "0") == "1"
 
+# --- GLOBAL MODEL CACHE ---
+_cached_model = None
+
+def get_embedding_model():
+    """
+    Get or load the embedding model (singleton pattern).
+    Model is loaded once and cached globally.
+    """
+    global _cached_model
+    
+    if _cached_model is None:
+        print("  ⏳ Loading Qwen3 Embedding Model (first time only)...")
+        from sentence_transformers import SentenceTransformer
+        
+        _cached_model = SentenceTransformer(
+            "Qwen/Qwen3-Embedding-0.6B",
+            trust_remote_code=True,
+            device="cpu"  # Force CPU for faster startup; change to "cuda" if GPU available
+        )
+        
+        # Warmup: do a dummy encode to initialize all internal states
+        print("  ⏳ Warming up model...")
+        _ = _cached_model.encode(["warmup"], prompt_name="query", convert_to_numpy=True)
+        
+        print("  ✅ Model ready!")
+    
+    return _cached_model
+
+
 def parse_embedding(emb):
     """
     Helper untuk mengubah string/list embedding menjadi numpy array float32.
@@ -46,11 +75,9 @@ def parse_embedding(emb):
 class FoodMatcher:
     def __init__(self):
         self.use_supabase = USE_SUPABASE
-        self.model = None  # Lazy load
         self.supabase = None
         self.index = None
         self.df = None
-        self._model_loaded = False
         
         if self.use_supabase:
             print("☁️ Using Supabase vector search")
@@ -58,20 +85,12 @@ class FoodMatcher:
         else:
             print("💻 Using local FAISS index")
             self._init_local()
+        
+        # Pre-load model during initialization
+        self.model = get_embedding_model()
 
     def _get_model(self):
-        """Lazy load model Qwen3."""
-        if not self._model_loaded:
-            print("  ⏳ Loading Qwen3 Model...")
-            from sentence_transformers import SentenceTransformer
-            
-            # --- UPDATE KHUSUS QWEN3 ---
-            self.model = SentenceTransformer(
-                "Qwen/Qwen3-Embedding-0.6B",
-                trust_remote_code=True # Wajib untuk arsitektur Qwen
-            )
-            self._model_loaded = True
-            print("  ✅ Model loaded!")
+        """Return cached model."""
         return self.model
 
     def _init_supabase_client(self):
@@ -105,10 +124,8 @@ class FoodMatcher:
     def embed(self, text):
         """
         Embed text menggunakan Qwen3.
-        PENTING: Qwen3 butuh instruksi 'prompt_name="query"' untuk input user.
         """
-        model = self._get_model()
-        return model.encode([text], prompt_name="query", convert_to_numpy=True)[0]
+        return self.model.encode([text], prompt_name="query", convert_to_numpy=True)[0]
 
     def _search_single_supabase(self, text, k=5):
         """

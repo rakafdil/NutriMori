@@ -83,28 +83,34 @@ export interface AnalysisResult {
  * Replace this implementation with real AI later
  */
 export async function matchFoods(input: string): Promise<MatchResult[]> {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 800));
-
-  const lower = input.toLowerCase();
-  const results: MatchResult[] = [];
-
-  // Simple keyword matching for mock
-  for (const mock of MOCK_MATCH_RESULTS) {
-    if (lower.includes(mock.candidate)) {
-      results.push({ ...mock });
-    }
-  }
-
-  // If no match, return a generic result
-  if (results.length === 0) {
-    results.push({
-      candidate: input.trim(),
-      match_result: [{ food_id: 999, nama: "Makanan umum", similarity: 0.7 }],
+  try {
+    const response = await fetch("http://localhost:5050/api/match-foods", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text: input }),
     });
-  }
 
-  return results;
+    if (!response.ok) {
+      console.error("Parse food API error:", response.status);
+      return [];
+    }
+
+    const result = await response.json();
+    console.debug("Parse food result:", result);
+
+    // Assuming the API returns MatchResult[] directly
+    // If it has a wrapper like { success: true, data: MatchResult[] }, adjust accordingly
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Failed to parse food:", error);
+    return [];
+  }
 }
 
 /**

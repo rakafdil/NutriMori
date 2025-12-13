@@ -2,3 +2,8 @@ export { default as DashboardContent } from "./DashboardContent";
 export { default as AddMealModal } from "./AddMealModal";
 export { default as MealCard } from "./MealCard";
 export { default as NutritionBreakdown } from "./NutritionBreakdown";
+export { default as GreetingHeader } from "./GreetingHeader";
+export { default as StatsCards } from "./StatsCards";
+export { default as DailyInsight } from "./DailyInsight";
+export { default as MealFilters } from "./MealFilters";
+export { default as MealHistory } from "./MealHistory";
