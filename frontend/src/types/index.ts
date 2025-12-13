@@ -22,6 +22,15 @@ export interface FoodItem {
   unit?: string;
 }
 
+export type MatchResult = {
+  candidate: string;
+  match_result: {
+    food_id: number;
+    nama: string;
+    similarity: number;
+  }[];
+};
+
 export interface NutritionInfo {
   items: FoodItem[];
   calories?: number;

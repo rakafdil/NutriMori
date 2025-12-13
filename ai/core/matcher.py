@@ -182,7 +182,7 @@ class FoodMatcher:
         seen = set()
         
         for c in candidates:
-            res = self._search_single(c, k=3)
+            res = self._search_single(c)
             for item in res:
                 if item["food_id"] not in seen:
                     aggregated.append(item)

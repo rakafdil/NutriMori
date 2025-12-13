@@ -44,7 +44,7 @@ export class FoodLogsService {
     userId: string,
     createDto: CreateFoodLogDto,
   ): Promise<FoodLogWithRelations> {
-    // Verify user exists
+    // Verify user exists2
     const userResult = await this.supabase
       .from('users')
       .select('id')

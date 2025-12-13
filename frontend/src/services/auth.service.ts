@@ -280,10 +280,38 @@ class AuthService {
     window.location.href = "/auth";
   }
 
-  // Get stored auth token
+  // Replace existing getAuthToken() with this
   getAuthToken(): string | null {
     if (typeof window === "undefined") return null;
-    return localStorage.getItem(AUTH_STORAGE_KEY);
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+
+    // If it's JSON, try to extract canonical token fields
+    if (raw.startsWith("{") || raw.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed === "string") return parsed;
+        if (parsed?.access_token && typeof parsed.access_token === "string") {
+          return parsed.access_token;
+        }
+        if (parsed?.token && typeof parsed.token === "string") {
+          return parsed.token;
+        }
+        // If it looks like a user object (id/email/name) it's invalid as auth token
+        if (parsed?.id && (parsed?.email || parsed?.name)) {
+          console.warn(
+            "Found user object stored in AUTH_STORAGE_KEY — removing it."
+          );
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+          return null;
+        }
+      } catch (e) {
+        // fallthrough to return raw
+        console.debug("Failed to parse stored auth value:", e);
+      }
+    }
+
+    return raw;
   }
 
   // Set auth token

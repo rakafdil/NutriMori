@@ -90,7 +90,7 @@ const AuthPage: React.FC = () => {
       const prefs = await checkPreferences();
 
       if (prefs?.isFillingPreferences) {
-        router.push("/dashboard");
+        window.location.href = "/dashboard";
       } else {
         router.push("/onboarding");
       }
@@ -150,7 +150,7 @@ const AuthPage: React.FC = () => {
 
         // Single replace to chosen route (replace avoids polluting history)
         if (filled) {
-          router.replace("/dashboard");
+          window.location.href = "/dashboard";
         } else {
           router.replace("/onboarding");
         }
