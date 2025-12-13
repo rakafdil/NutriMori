@@ -1,7 +1,7 @@
 {
     "info": {
         "name": "NutriMori - Nutrition Analysis",
-        "description": "Collection to test Nutrition Analysis API endpoints",
+        "description": "Collection to test Nutrition Analysis API endpoints.\n\n## Flow:\n1. User logs food -> food_logs & food_log_items tables\n2. User calls POST /nutrition-analysis with foodLogId\n3. System searches nutrition info from database based on food_id from food_log_items\n4. System calculates total nutrition based on qty and gram_weight\n5. System analyzes nutrition with user data & preferences\n6. Analysis results saved to nutrition_analysis table and returned",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "auth": {
@@ -38,9 +38,31 @@
                         "nutrition-analysis"
                     ]
                 },
-                "description": "Create a nutrition analysis for a given food log. Requires Bearer token."
+                "description": "Create a nutrition analysis for a given food log.\n\n**Flow:**\n1. Get food log with items from database\n2. Get nutrition info from database based on food_id from food_log_items\n3. Calculate total nutrition\n4. Analyze nutrition based on user data and preferences\n5. Save analysis results to nutrition_analysis table\n\nRequires Bearer token."
             },
-            "response": []
+            "response": [
+                {
+                    "name": "Success Response",
+                    "originalRequest": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"foodLogId\": \"123e4567-e89b-12d3-a456-426614174000\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-analysis",
+                            "host": ["{{base_url}}"],
+                            "path": ["nutrition-analysis"]
+                        }
+                    },
+                    "status": "Created",
+                    "code": 201,
+                    "_postman_previewlanguage": "json",
+                    "header": [],
+                    "body": "{\n  \"analysisId\": \"123e4567-e89b-12d3-a456-426614174002\",\n  \"foodLogId\": \"123e4567-e89b-12d3-a456-426614174000\",\n  \"nutritionFacts\": {\n    \"calories\": 450,\n    \"protein\": \"30g\",\n    \"carbs\": \"50g\",\n    \"fat\": \"15g\",\n    \"sugar\": \"5g\",\n    \"fiber\": \"8g\",\n    \"sodium\": \"500mg\",\n    \"cholesterol\": \"50mg\"\n  },\n  \"micronutrients\": {\n    \"vitamin_c\": \"10%\",\n    \"iron\": \"5%\"\n  },\n  \"healthTags\": [\"High Protein\", \"Low Sugar\"],\n  \"analysisNotes\": \"Total meal contains 450 calories with 30g protein, 50g carbs, and 15g fat. Positive aspects: High Protein, Low Sugar. This meal aligns well with your nutritional goals.\",\n  \"meetsGoals\": true,\n  \"warnings\": [],\n  \"createdAt\": \"2024-01-15T10:30:00.000Z\",\n  \"updatedAt\": null\n}"
+                }
+            ]
         },
         {
             "name": "Get Analysis By Food Log ID (GET)",
@@ -65,7 +87,25 @@
                 },
                 "description": "Retrieve previously created analysis by food log ID. Requires Bearer token."
             },
-            "response": []
+            "response": [
+                {
+                    "name": "Success Response",
+                    "originalRequest": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-analysis/food-log/123e4567-e89b-12d3-a456-426614174000",
+                            "host": ["{{base_url}}"],
+                            "path": ["nutrition-analysis", "food-log", "123e4567-e89b-12d3-a456-426614174000"]
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "_postman_previewlanguage": "json",
+                    "header": [],
+                    "body": "{\n  \"analysisId\": \"123e4567-e89b-12d3-a456-426614174002\",\n  \"foodLogId\": \"123e4567-e89b-12d3-a456-426614174000\",\n  \"nutritionFacts\": {\n    \"calories\": 450,\n    \"protein\": \"30g\",\n    \"carbs\": \"50g\",\n    \"fat\": \"15g\",\n    \"sugar\": \"5g\"\n  },\n  \"micronutrients\": {\n    \"vitamin_c\": \"10%\",\n    \"iron\": \"5%\"\n  },\n  \"healthTags\": [\"High Protein\", \"Low Sugar\"],\n  \"analysisNotes\": \"Total meal contains 450 calories...\",\n  \"meetsGoals\": true,\n  \"warnings\": [],\n  \"createdAt\": \"2024-01-15T10:30:00.000Z\"\n}"
+                }
+            ]
         },
         {
             "name": "Get User Analysis History (GET)",
@@ -96,7 +136,26 @@
                 },
                 "description": "Get recent nutrition analyses for the authenticated user. Requires Bearer token."
             },
-            "response": []
+            "response": [
+                {
+                    "name": "Success Response",
+                    "originalRequest": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-analysis/history?limit=10",
+                            "host": ["{{base_url}}"],
+                            "path": ["nutrition-analysis", "history"],
+                            "query": [{"key": "limit", "value": "10"}]
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "_postman_previewlanguage": "json",
+                    "header": [],
+                    "body": "[\n  {\n    \"analysisId\": \"uuid-1\",\n    \"foodLogId\": \"uuid-food-log-1\",\n    \"nutritionFacts\": {\n      \"calories\": 450,\n      \"protein\": \"30g\",\n      \"carbs\": \"50g\",\n      \"fat\": \"15g\",\n      \"sugar\": \"5g\"\n    },\n    \"micronutrients\": {\n      \"vitamin_c\": \"10%\",\n      \"iron\": \"5%\"\n    },\n    \"healthTags\": [\"High Protein\", \"Low Sugar\"],\n    \"createdAt\": \"2024-01-15T10:30:00.000Z\"\n  }\n]"
+                }
+            ]
         }
     ],
     "variable": [
