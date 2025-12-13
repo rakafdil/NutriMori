@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "NutriMori - Habit Insights",
-    "description": "Testing collection for Habit Insights API endpoints",
+    "description": "API endpoints untuk analisis pola makan pengguna dengan AI-powered insights.\n\n## Fitur Utama\n- Deteksi pola makan (positif/negatif)\n- Analisis tren nutrisi\n- Skor kesehatan (0-100)\n- Rekomendasi AI (Gemini)\n- Caching untuk efisiensi\n\n## Periode Tersedia\n- `weekly` - 7 hari terakhir\n- `monthly` - 30 hari terakhir\n- `yearly` - 365 hari terakhir\n- `overall` - Semua data (max 5 tahun)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -16,154 +16,405 @@
   },
   "item": [
     {
-      "name": "Get Habit Insights - Weekly",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/habit-insights?period=weekly",
-          "host": ["{{base_url}}"],
-          "path": ["habit-insights"],
-          "query": [
-            {
-              "key": "period",
-              "value": "weekly",
-              "description": "Analysis period: weekly, monthly, yearly, or overall"
-            }
-          ]
-        },
-        "description": "Get habit insights for the last 7 days. User ID is automatically extracted from JWT token."
-      },
-      "response": []
-    },
-    {
-      "name": "Get Habit Insights - Monthly",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/habit-insights?period=monthly",
-          "host": ["{{base_url}}"],
-          "path": ["habit-insights"],
-          "query": [
-            {
-              "key": "period",
-              "value": "monthly",
-              "description": "Last 30 days"
-            }
-          ]
-        },
-        "description": "Get habit insights for the last 30 days. User ID is automatically extracted from JWT token."
-      },
-      "response": []
-    },
-    {
-      "name": "Get Habit Insights - Yearly",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/habit-insights?period=yearly",
-          "host": ["{{base_url}}"],
-          "path": ["habit-insights"],
-          "query": [
-            {
-              "key": "period",
-              "value": "yearly",
-              "description": "Last 365 days"
-            }
-          ]
-        },
-        "description": "Get habit insights for the last 365 days. User ID is automatically extracted from JWT token."
-      },
-      "response": []
-    },
-    {
-      "name": "Get Habit Insights - Overall",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/habit-insights?period=overall",
-          "host": ["{{base_url}}"],
-          "path": ["habit-insights"],
-          "query": [
-            {
-              "key": "period",
-              "value": "overall",
-              "description": "All available data"
-            }
-          ]
-        },
-        "description": "Get habit insights for all available data. User ID is automatically extracted from JWT token."
-      },
-      "response": []
-    },
-    {
-      "name": "Get Habit Insights - Custom Date Range",
-      "request": {
-        "method": "GET",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": {
-          "raw": "{{base_url}}/habit-insights?period=weekly&startDate=2024-12-01&endDate=2024-12-10",
-          "host": ["{{base_url}}"],
-          "path": ["habit-insights"],
-          "query": [
-            {
-              "key": "period",
-              "value": "weekly",
-              "description": "Period type (can be any valid period)"
+      "name": "📊 Get Insights",
+      "item": [
+        {
+          "name": "Get Habit Insights - Weekly",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/habit-insights?period=weekly",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "weekly",
+                  "description": "Analisis 7 hari terakhir"
+                }
+              ]
             },
+            "description": "Mendapatkan insight pola makan untuk 7 hari terakhir.\n\n**Response Fields:**\n- `patterns` - Pola yang terdeteksi (positif/negatif)\n- `nutrientTrends` - Tren nutrisi dengan status\n- `mealTimings` - Konsistensi waktu makan\n- `healthScore` - Skor kesehatan (0-100)\n- `recommendations` - Saran dari AI"
+          },
+          "response": [
             {
-              "key": "startDate",
-              "value": "2024-12-01",
-              "description": "Custom start date (YYYY-MM-DD)"
-            },
-            {
-              "key": "endDate",
-              "value": "2024-12-10",
-              "description": "Custom end date (YYYY-MM-DD)"
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/habit-insights?period=weekly"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"userId\": \"user-uuid-here\",\n  \"period\": \"weekly\",\n  \"dateRange\": {\n    \"start\": \"2024-12-06\",\n    \"end\": \"2024-12-13\"\n  },\n  \"daysAnalyzed\": 7,\n  \"totalMeals\": 21,\n  \"averageCalories\": 2150,\n  \"patterns\": [\n    {\n      \"type\": \"positive\",\n      \"message\": \"Pola makan konsisten dengan kalori stabil\",\n      \"impact\": \"High\",\n      \"frequency\": \"Daily\"\n    },\n    {\n      \"type\": \"negative\",\n      \"message\": \"Melewatkan sarapan 3 hari\",\n      \"impact\": \"High\",\n      \"daysDetected\": [\"Monday\", \"Wednesday\", \"Friday\"]\n    }\n  ],\n  \"nutrientTrends\": [\n    {\n      \"nutrient\": \"Protein\",\n      \"averageDaily\": 65.5,\n      \"trend\": \"stable\",\n      \"recommended\": 60,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Gula\",\n      \"averageDaily\": 58.2,\n      \"trend\": \"increasing\",\n      \"recommended\": 50,\n      \"status\": \"Above target\"\n    }\n  ],\n  \"mealTimings\": [\n    {\n      \"mealType\": \"Breakfast\",\n      \"averageTime\": \"07:30\",\n      \"consistency\": 85,\n      \"note\": \"Sangat konsisten\"\n    },\n    {\n      \"mealType\": \"Lunch\",\n      \"averageTime\": \"12:15\",\n      \"consistency\": 72,\n      \"note\": \"Cukup konsisten\"\n    },\n    {\n      \"mealType\": \"Dinner\",\n      \"averageTime\": \"19:00\",\n      \"consistency\": 65,\n      \"note\": \"Cukup konsisten\"\n    }\n  ],\n  \"summary\": \"Kebiasaan makan cukup baik dengan 2 pola positif. Perlu perbaikan pada konsistensi sarapan.\",\n  \"recommendations\": [\n    \"Usahakan sarapan sebelum jam 9 pagi dengan menu berprotein.\",\n    \"Kurangi minuman manis dan dessert untuk menurunkan asupan gula.\",\n    \"Pertahankan pola makan seimbang dengan sayur dan buah setiap hari.\"\n  ],\n  \"healthScore\": 72,\n  \"generatedAt\": \"2024-12-13T10:30:00.000Z\"\n}"
             }
           ]
         },
-        "description": "Get habit insights for a custom date range. User ID is automatically extracted from JWT token."
-      },
-      "response": []
+        {
+          "name": "Get Habit Insights - Monthly",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/habit-insights?period=monthly",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "monthly",
+                  "description": "Analisis 30 hari terakhir"
+                }
+              ]
+            },
+            "description": "Mendapatkan insight pola makan untuk 30 hari terakhir.\n\nCache expired: 3 hari"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Habit Insights - Yearly",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/habit-insights?period=yearly",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "yearly",
+                  "description": "Analisis 365 hari terakhir"
+                }
+              ]
+            },
+            "description": "Mendapatkan insight pola makan untuk 365 hari terakhir.\n\nCache expired: 7 hari"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Habit Insights - Overall",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/habit-insights?period=overall",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "overall",
+                  "description": "Semua data tersedia (max 5 tahun)"
+                }
+              ]
+            },
+            "description": "Mendapatkan insight untuk semua data yang tersedia.\n\nCache expired: 7 hari"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Habit Insights - Custom Date Range",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/habit-insights?period=weekly&startDate=2024-12-01&endDate=2024-12-10",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "weekly",
+                  "description": "Tipe periode (untuk cache expiry)"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2024-12-01",
+                  "description": "Tanggal mulai (YYYY-MM-DD)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-12-10",
+                  "description": "Tanggal akhir (YYYY-MM-DD)"
+                }
+              ]
+            },
+            "description": "Mendapatkan insight untuk rentang tanggal kustom.\n\n**Parameters:**\n- `period` - Tetap diperlukan untuk menentukan cache expiry\n- `startDate` - Tanggal mulai (format: YYYY-MM-DD)\n- `endDate` - Tanggal akhir (format: YYYY-MM-DD)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔄 Cache Management",
+      "item": [
+        {
+          "name": "Refresh Insight (Force Regenerate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"period\": \"weekly\",\n  \"forceRefresh\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/habit-insights/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights", "refresh"]
+            },
+            "description": "Memaksa regenerasi insight dengan mengabaikan cache.\n\n**Use Case:**\n- Setelah user menambah data makanan baru\n- Ingin hasil terbaru tanpa menunggu cache expired\n\n**Body:**\n```json\n{\n  \"period\": \"weekly\",\n  \"forceRefresh\": true\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Invalidate Cache",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/habit-insights/cache?period=weekly",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights", "cache"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "weekly",
+                  "description": "Periode cache yang akan dihapus (opsional, jika kosong hapus semua)"
+                }
+              ]
+            },
+            "description": "Menghapus cache insight untuk periode tertentu atau semua periode.\n\n**Query Parameters:**\n- `period` (optional) - Jika tidak disertakan, semua cache user akan dihapus"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📈 Analytics",
+      "item": [
+        {
+          "name": "Get Pattern Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/habit-insights/patterns?period=monthly",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights", "patterns"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "monthly"
+                }
+              ]
+            },
+            "description": "Mendapatkan ringkasan pola saja tanpa analisis lengkap.\n\n**Response:**\n- Hanya `patterns` array\n- Lebih ringan dari full insight"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/habit-insights/patterns?period=monthly"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"period\": \"monthly\",\n  \"dateRange\": {\n    \"start\": \"2024-11-13\",\n    \"end\": \"2024-12-13\"\n  },\n  \"patterns\": [\n    {\n      \"type\": \"positive\",\n      \"message\": \"Konsisten makan sayur saat makan siang\",\n      \"impact\": \"Medium\",\n      \"streak\": 18\n    },\n    {\n      \"type\": \"positive\",\n      \"message\": \"Asupan serat memenuhi target\",\n      \"impact\": \"Medium\",\n      \"streak\": 22\n    },\n    {\n      \"type\": \"negative\",\n      \"message\": \"Asupan gula berlebih di akhir pekan\",\n      \"impact\": \"Medium\",\n      \"daysDetected\": [\"Saturday\", \"Sunday\"]\n    }\n  ],\n  \"positiveCount\": 2,\n  \"negativeCount\": 1,\n  \"neutralCount\": 0\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Nutrient Trends",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/habit-insights/nutrients?period=monthly",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights", "nutrients"],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "monthly"
+                }
+              ]
+            },
+            "description": "Mendapatkan tren nutrisi saja.\n\n**Response:**\n- `nutrientTrends` array dengan detail setiap nutrisi\n- Berguna untuk grafik/chart"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/habit-insights/nutrients?period=monthly"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"period\": \"monthly\",\n  \"dateRange\": {\n    \"start\": \"2024-11-13\",\n    \"end\": \"2024-12-13\"\n  },\n  \"nutrientTrends\": [\n    {\n      \"nutrient\": \"Protein\",\n      \"averageDaily\": 58.3,\n      \"trend\": \"increasing\",\n      \"recommended\": 60,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Karbohidrat\",\n      \"averageDaily\": 285.5,\n      \"trend\": \"stable\",\n      \"recommended\": 300,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Lemak\",\n      \"averageDaily\": 62.1,\n      \"trend\": \"stable\",\n      \"recommended\": 65,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Serat\",\n      \"averageDaily\": 28.4,\n      \"trend\": \"increasing\",\n      \"recommended\": 30,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Gula\",\n      \"averageDaily\": 55.2,\n      \"trend\": \"stable\",\n      \"recommended\": 50,\n      \"status\": \"Above target\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Health Score History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/habit-insights/health-score/history?months=6",
+              "host": ["{{base_url}}"],
+              "path": ["habit-insights", "health-score", "history"],
+              "query": [
+                {
+                  "key": "months",
+                  "value": "6",
+                  "description": "Jumlah bulan ke belakang"
+                }
+              ]
+            },
+            "description": "Mendapatkan riwayat health score per bulan.\n\n**Response:**\n- Array health score bulanan\n- Berguna untuk tracking progress"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{base_url}}/habit-insights/health-score/history?months=6"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"history\": [\n    { \"month\": \"2024-07\", \"score\": 65, \"trend\": \"stable\" },\n    { \"month\": \"2024-08\", \"score\": 68, \"trend\": \"increasing\" },\n    { \"month\": \"2024-09\", \"score\": 72, \"trend\": \"increasing\" },\n    { \"month\": \"2024-10\", \"score\": 70, \"trend\": \"decreasing\" },\n    { \"month\": \"2024-11\", \"score\": 74, \"trend\": \"increasing\" },\n    { \"month\": \"2024-12\", \"score\": 76, \"trend\": \"increasing\" }\n  ],\n  \"currentScore\": 76,\n  \"averageScore\": 70.8,\n  \"improvement\": 11\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set current date for custom range tests",
+          "const today = new Date();",
+          "const lastWeek = new Date(today);",
+          "lastWeek.setDate(today.getDate() - 7);",
+          "",
+          "pm.collectionVariables.set('today', today.toISOString().split('T')[0]);",
+          "pm.collectionVariables.set('lastWeek', lastWeek.toISOString().split('T')[0]);"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Common tests for all requests",
+          "pm.test('Response status is 2xx', function () {",
+          "    pm.expect(pm.response.code).to.be.within(200, 299);",
+          "});",
+          "",
+          "pm.test('Response time is acceptable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Content-Type is JSON', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});"
+        ]
+      }
     }
   ],
   "variable": [
     {
       "key": "base_url",
+      "value": "http://localhost:3001/api",
+      "type": "string",
+      "description": "Local development URL"
+    },
+    {
+      "key": "base_url_prod",
       "value": "https://nutrimori.vercel.app/api",
-      "type": "string"
+      "type": "string",
+      "description": "Production URL"
     },
     {
       "key": "access_token",
+      "value": "",
+      "type": "string",
+      "description": "JWT access token from login"
+    },
+    {
+      "key": "today",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lastWeek",
       "value": "",
       "type": "string"
     }
