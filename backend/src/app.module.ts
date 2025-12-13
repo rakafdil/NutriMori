@@ -10,6 +10,7 @@ import { NutritionRulesModule } from './nutrition-rules';
 import { SupabaseModule } from './supabase';
 import { UserPreferencesModule } from './user-preferences';
 import { UsersModule } from './users';
+import { FoodsModule } from './foods';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UsersModule } from './users';
     NutritionRulesModule,
     HabitInsightsModule,
     NutritionAnalysisModule,
+    FoodsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

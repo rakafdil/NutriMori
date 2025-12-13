@@ -58,9 +58,7 @@ export default function AppRouteLayout({ children }: { children: ReactNode }) {
         }
 
         // Single replace to chosen route (replace avoids polluting history)
-        if (filled) {
-          router.replace("/dashboard");
-        } else {
+        if (!filled) {
           router.replace("/onboarding");
         }
       } catch (err) {
