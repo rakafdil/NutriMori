@@ -17,8 +17,6 @@ CREATE TABLE public.habit_insights_cache (
   
   -- JSON data
   patterns jsonb DEFAULT '[]'::jsonb,
-  nutrient_trends jsonb DEFAULT '[]'::jsonb,
-  meal_timings jsonb DEFAULT '[]'::jsonb,
   recommendations jsonb DEFAULT '[]'::jsonb,
   
   -- AI-generated content

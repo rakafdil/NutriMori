@@ -11,7 +11,6 @@ import {
   GetHabitInsightDto,
   HabitInsightResponseDto,
   HabitPatternDto,
-  NutrientTrendDto,
   PeriodType,
 } from './dto';
 import { HabitInsightsService } from './habit-insights.service';
@@ -30,12 +29,6 @@ class PatternSummaryResponseDto {
   positiveCount: number;
   negativeCount: number;
   neutralCount: number;
-}
-
-class NutrientTrendsResponseDto {
-  period: PeriodType;
-  dateRange: { start: string; end: string };
-  nutrientTrends: NutrientTrendDto[];
 }
 
 class HealthScoreHistoryDto {
@@ -167,32 +160,6 @@ export class HabitInsightsController {
       positiveCount: insight.patterns.filter(p => p.type === 'positive').length,
       negativeCount: insight.patterns.filter(p => p.type === 'negative').length,
       neutralCount: insight.patterns.filter(p => p.type === 'neutral').length,
-    };
-  }
-
-  @Get('nutrients')
-  @ApiOperation({
-    summary: 'Get nutrient trends only',
-    description: 'Returns only nutrient trend analysis.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Nutrient trends',
-    type: NutrientTrendsResponseDto,
-  })
-  async getNutrientTrends(
-    @GetUser('id') userId: string,
-    @Query() query: GetHabitInsightDto,
-  ): Promise<NutrientTrendsResponseDto> {
-    const insight = await this.habitInsightsService.generateInsight({
-      ...query,
-      userId,
-    });
-
-    return {
-      period: insight.period,
-      dateRange: insight.dateRange,
-      nutrientTrends: insight.nutrientTrends,
     };
   }
 

@@ -1,5 +1,5 @@
 import { DAY_ABBREVIATIONS } from '../constants';
-import { HabitPatternDto, NutrientTrendDto } from '../dto';
+import { HabitPatternDto } from '../dto';
 import { AggregatedDayData } from '../types';
 
 /**
@@ -30,12 +30,6 @@ export const TOON_KEYS = {
     daysDetected: 'dd',
     streak: 'st',
     frequency: 'fr',
-    // Trends
-    nutrient: 'n',
-    averageDaily: 'avg',
-    trend: 'tr',
-    recommended: 'rec',
-    status: 'sts',
 } as const;
 
 // ============ STATUS ABBREVIATIONS ============
@@ -140,21 +134,6 @@ export class ToonSerializer {
         });
 
         return JSON.stringify(compact).replace(/"/g, '');
-    }
-
-    /**
-     * Serialize nutrient trends to TOON format
-     * @example "Pro:65/60↑OK,Gul:48/50→AT"
-     */
-    static serializeTrends(trends: NutrientTrendDto[]): string {
-        if (trends.length === 0) return '-';
-
-        return trends.map(t => {
-            const trendSymbol = STATUS_ABBREVIATIONS[t.trend] || '→';
-            const statusSymbol = STATUS_ABBREVIATIONS[t.status] || 'OK';
-            const nutrientAbbrev = t.nutrient.slice(0, 3);
-            return `${nutrientAbbrev}:${Math.round(t.averageDaily)}/${t.recommended}${trendSymbol}${statusSymbol}`;
-        }).join(',');
     }
 
     /**

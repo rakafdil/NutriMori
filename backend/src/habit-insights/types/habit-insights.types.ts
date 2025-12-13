@@ -1,4 +1,3 @@
-import { MealTimingPatternDto, NutrientTrendDto } from '../dto';
 
 // ============ NUTRITION ANALYSIS TYPES (Primary Data Source) ============
 
@@ -143,8 +142,6 @@ export interface CachedInsight {
     data_hash: string;
     expires_at: string;
     patterns: PatternDto[];
-    nutrient_trends: NutrientTrendDto[];
-    meal_timings?: MealTimingPatternDto[];
     recommendations: string[];
     summary: string;
     health_score: number;

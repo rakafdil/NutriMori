@@ -84,44 +84,7 @@ export class HabitPatternDto {
   impact?: string;
 }
 
-export class NutrientTrendDto {
-  @ApiProperty({ description: 'Nutrient name', example: 'Protein' })
-  nutrient: string;
 
-  @ApiProperty({ description: 'Average daily intake', example: 65.5 })
-  averageDaily: number;
-
-  @ApiProperty({
-    description: 'Trend direction',
-    example: 'increasing',
-    enum: ['increasing', 'decreasing', 'stable'],
-  })
-  trend: string;
-
-  @ApiProperty({ description: 'Recommended intake', example: 70 })
-  recommended: number;
-
-  @ApiProperty({
-    description: 'Status',
-    example: 'Below target',
-    enum: ['Below target', 'On target', 'Above target'],
-  })
-  status: string;
-}
-
-export class MealTimingPatternDto {
-  @ApiProperty({ description: 'Meal type', example: 'Breakfast' })
-  mealType: string;
-
-  @ApiProperty({ description: 'Average time', example: '07:30' })
-  averageTime: string;
-
-  @ApiProperty({ description: 'Consistency score (0-100)', example: 85 })
-  consistency: number;
-
-  @ApiProperty({ description: 'Analysis note' })
-  note: string;
-}
 
 export class HabitInsightResponseDto {
   @ApiProperty({ description: 'User ID' })
@@ -157,18 +120,6 @@ export class HabitInsightResponseDto {
 
   @ApiProperty({ description: 'Key recommendations from ML', type: [String] })
   recommendations: string[];
-
-  @ApiProperty({
-    description: 'Nutrient trends over time',
-    type: [NutrientTrendDto],
-  })
-  nutrientTrends: NutrientTrendDto[];
-
-  @ApiProperty({
-    description: 'Meal timing patterns',
-    type: [MealTimingPatternDto],
-  })
-  mealTimings: MealTimingPatternDto[];
 
   @ApiProperty({ description: 'Health score (0-100)', example: 78 })
   healthScore: number;
