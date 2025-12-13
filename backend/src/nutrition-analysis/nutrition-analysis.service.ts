@@ -26,6 +26,7 @@ interface FoodNutrient {
     carbs: number;
     fat: number;
     sugar: number;
+    sugar_estimated?: boolean;
     fiber: number;
     sodium: number;
     cholesterol: number;
@@ -145,9 +146,9 @@ export class NutritionAnalysisService {
         const totalNutrition = this.calculateTotalNutrition(foodLogItems, nutritionData);
 
         const [preferences, rules, userProfile] = await Promise.all([
-            this.getUserPreferences(userId),
+            this.getUserPreferences(targetUserId),
             this.getNutritionRules(),
-            this.getUserProfile(userId),
+            this.getUserProfile(targetUserId),
         ]);
 
         const akgData = await this.getAkgData(userProfile?.age, userProfile?.gender);
@@ -162,7 +163,7 @@ export class NutritionAnalysisService {
 
         const micronutrients = this.calculateMicronutrients(foodLogItems, nutritionData, akgData);
 
-        const analysisNotes = this.buildNotes(totalNutrition, healthTags, warnings);
+        const sugarEstimated = this.isSugarEstimated(foodLogItems, nutritionData);
 
         const nutritionInsert = {
             food_log_id: foodLogId,
@@ -172,12 +173,14 @@ export class NutritionAnalysisService {
             total_carbs: totalNutrition.carbs,
             total_fat: totalNutrition.fat,
             total_sugar: totalNutrition.sugar,
+            sugar_estimated: sugarEstimated,
             total_fiber: totalNutrition.fiber,
             total_sodium: totalNutrition.sodium,
             total_cholesterol: totalNutrition.cholesterol,
             micronutrients,
             health_tags: healthTags,
             warnings,
+            meets_goals: meetsGoals,
         };
 
         const { data, error } = await supabase
@@ -372,13 +375,13 @@ export class NutritionAnalysisService {
             .select('*')
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
-            .limit(limit);
+            .limit(safeLimit);
 
         if (error) {
             this.logger.error(`Failed to retrieve history for user ${userId}: ${error.message}`);
             throw new BadRequestException(`Failed to retrieve analysis history: ${error.message}`);
         }
-
+        
         return (data || []).map(item => {
             const nutrition: NutritionFactsNumericDto = {
                 calories: item.total_calories,
@@ -446,11 +449,20 @@ export class NutritionAnalysisService {
                 .in('id', intIds);
 
 data?.forEach((i: any) => {
-    const carbs = Number(i.carbohydrate || 0);
+    const carbs = Number(i.carbohydrate ?? 0);
 
-    // FIX SUGAR (estimasi 35% karbo bila sugar = 0/NULL)
-    const rawSugar = Number(i.sugar);
-    const sugarValue = rawSugar > 0 ? rawSugar : carbs * 0.2;
+    // Periksa nilai asli dari DB (bukan Number(...))
+    const rawSugarRaw = i.sugar;
+    let sugarValue: number;
+    let sugarEstimated = false;
+
+    if (rawSugarRaw === null || rawSugarRaw === undefined) {
+        sugarValue = Number((carbs * 0.05).toFixed(2));
+        sugarEstimated = true;
+    } else {
+        sugarValue = Number(rawSugarRaw) || 0;
+        sugarEstimated = false;
+    }
 
     map.set(String(i.id), {
         food_id: String(i.id),
@@ -459,6 +471,7 @@ data?.forEach((i: any) => {
         carbs: carbs,
         fat: Number(i.total_fat || 0),
         sugar: Number(sugarValue),
+        sugar_estimated: sugarEstimated,
         fiber: Number(i.fiber || 0),
         sodium: Number(i.sodium || 0),
         cholesterol: Number(i.cholesterol || 0),
@@ -568,11 +581,15 @@ data?.forEach((i: any) => {
         // --- DYNAMIC LOGIC BASED ON AKG ---
         if (akg) {
             // Health Tags
-            const proteinDensity = nutrition.protein / nutrition.calories * 100;
-            if (proteinDensity >= 20) tags.push('High Protein');
+            if (nutrition.calories > 0) {
+                const proteinDensity = (nutrition.protein / nutrition.calories) * 100;
+                if (!Number.isNaN(proteinDensity) && proteinDensity >= 20) tags.push('High Protein');
+
+                const sugarEnergy = (nutrition.sugar || 0) * 4;
+                const sugarRatio = sugarEnergy / nutrition.calories;
+                if (!Number.isNaN(sugarRatio) && sugarRatio > 0.1) warnings.push('High Added Sugar');
+            }
             if (nutrition.fiber && nutrition.fiber >= (akg.serat_g * 0.3)) tags.push('High Fiber');
-            
-            // Warnings
             // Batas Natrium (Sodium) biasanya 2000-2300mg, tapi kita pakai data AKG jika ada
             const sodiumLimit = akg.natrium_mg || 2000;
             const mealSodiumLimit = sodiumLimit * 0.33; // 1/3 harian
@@ -582,7 +599,11 @@ data?.forEach((i: any) => {
 
             // Gula (Sugar) - AKG Indonesia 2019 tidak spesifik gula tambahan, tapi WHO saran <50g (atau <10% energi)
             // Kita pakai estimasi 50g sehari
-            if (nutrition.sugar > 20) warnings.push('High Sugar'); 
+            const sugarEnergy = (nutrition.sugar || 0) * 4;
+            const sugarRatio = sugarEnergy / nutrition.calories;
+            if (!Number.isNaN(sugarRatio) && sugarRatio > 0.1) {
+                warnings.push('High Added Sugar');
+            }
         } else {
             // Fallback logic if AKG not found
             if (nutrition.protein >= 20) tags.push('High Protein');
@@ -595,7 +616,6 @@ data?.forEach((i: any) => {
             tags.push('Low Sugar');
         }
         if (nutrition.calories <= 500 && nutrition.protein > 15) tags.push('Balanced Meal');
-        if (nutrition.cholesterol && nutrition.cholesterol > 300) warnings.push('High Cholesterol');
 
         for (const r of rules) {
             const val = this.getNutrientValue(nutrition, r.nutrient);
@@ -736,5 +756,12 @@ data?.forEach((i: any) => {
 
     private isValidUUID(str: string) {
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    }
+
+    private isSugarEstimated(items: FoodLogItem[], map: Map<string, FoodNutrient>): boolean {
+        return items.some(item => {
+            const n = map.get(String(item.food_id));
+            return n?.sugar_estimated === true;
+        });
     }
 }
