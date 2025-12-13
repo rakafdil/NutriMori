@@ -45,7 +45,9 @@ export interface HabitInsightsResponse {
     macronutrients: MacronutrientData[];
     mealTiming: MealTimingDay[];
     aiPatternDiscovery: AIPatternDiscovery;
-    dietScore: string;
+    dietScore: string | number;
   };
   message?: string;
 }
+
+export type HabitInsightsData = HabitInsightsResponse["data"];

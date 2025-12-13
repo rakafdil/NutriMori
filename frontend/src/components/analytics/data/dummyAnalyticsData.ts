@@ -1,6 +1,9 @@
 import { HabitInsightsData } from "@/types/habitInsights";
 
 export const dummyAnalyticsData: HabitInsightsData = {
+  period: "weekly",
+  startDate: "2025-12-08",
+  endDate: "2025-12-14",
   calorieIntake: [
     { day: "Mon", cal: 1850 },
     { day: "Tue", cal: 2100 },
