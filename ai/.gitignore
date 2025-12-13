@@ -41,7 +41,4 @@ instance/
 *.swo
 
 # Data files
-data/*.parquet
-data/*.npy
-data/*.faiss
 .vercel

@@ -65,7 +65,6 @@ CREATE TABLE public.food_logs (
   raw_text text,
   meal_type USER-DEFINED,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  parsed_by_llm boolean DEFAULT false,
   CONSTRAINT food_logs_pkey PRIMARY KEY (log_id),
   CONSTRAINT food_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
 );

@@ -59,7 +59,6 @@ export class FoodLogsService {
       user_id: userId,
       raw_text: createDto.rawText,
       meal_type: createDto.mealType,
-      parsed_by_llm: createDto.parsedByLlm ?? false,
     };
 
     const result = await this.supabase
@@ -100,7 +99,6 @@ export class FoodLogsService {
       user_id: userId,
       raw_text: input.text,
       meal_type: input.mealType,
-      parsed_by_llm: false,
     };
 
     const result = await this.supabase
@@ -119,8 +117,6 @@ export class FoodLogsService {
       );
     }
 
-    // TODO: Integrate with AI service
-
     return result.data as FoodLogWithRelations;
   }
 
@@ -131,22 +127,24 @@ export class FoodLogsService {
     // Verify log exists and belongs to user
     await this.findOne(userId, itemDto.logId);
 
-    const insertData = {
+    const insertData: Record<string, unknown> = {
       log_id: itemDto.logId,
-      detected_name: itemDto.detectedName,
-      food_id: itemDto.foodId,
-      confidence_score: itemDto.confidenceScore,
       qty: itemDto.qty,
       unit: itemDto.unit,
       gram_weight: itemDto.gramWeight,
     };
+
+    // Only add food_id if it's provided and valid
+    if (itemDto.foodId !== undefined && itemDto.foodId !== null) {
+      insertData.food_id = itemDto.foodId;
+    }
 
     const result = await this.supabase
       .from('food_log_items')
       .insert(insertData)
       .select('*')
       .single();
-
+    console.log(result.error, result.data);
     if (result.error) {
       this.handleSupabaseError(result.error, 'Failed to create food log item');
     }
@@ -183,7 +181,7 @@ export class FoodLogsService {
     }
 
     const result = await query;
-
+    console.log(result);
     if (result.error) {
       this.handleSupabaseError(result.error, 'Failed to fetch food logs');
     }
@@ -244,8 +242,6 @@ export class FoodLogsService {
       updateData.raw_text = updateDto.rawText;
     if (updateDto.mealType !== undefined)
       updateData.meal_type = updateDto.mealType;
-    if (updateDto.parsedByLlm !== undefined)
-      updateData.parsed_by_llm = updateDto.parsedByLlm;
 
     const result = await this.supabase
       .from('food_logs')

@@ -22,6 +22,7 @@ import {
   useStreaks,
   useFoodLogActions,
 } from "@/hooks/useFoodLogs";
+import { useProfile } from "@/hooks/useProfile";
 
 // Flow steps
 type FlowStep = "idle" | "input" | "verify" | "result";
@@ -61,8 +62,15 @@ const transformFoodLogToMeal = (log: any): Meal => {
   };
 };
 
+// Helper function to validate UUID
+const isValidUUID = (str: string): boolean => {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 const DashboardContent: React.FC = () => {
-  const { user } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const [meals, setMeals] = useState<Meal[]>([]);
   const [dailyInsight, setDailyInsight] = useState(
     "Belum ada data makan hari ini. Yuk catat sarapanmu!"
@@ -77,6 +85,8 @@ const DashboardContent: React.FC = () => {
   );
   const [lastRawInput, setLastRawInput] = useState("");
 
+  const { fetchProfile } = useProfile();
+
   // Data hooks
   const {
     isLoading: isLoadingLogs,
@@ -85,7 +95,11 @@ const DashboardContent: React.FC = () => {
     refetch: refetchLogs,
   } = useFoodLogsList();
   const { isLoading: isLoadingStreaks, data: streaksData } = useStreaks();
-  const { createLog, isSubmitting } = useFoodLogActions();
+  const { logFoodText, logFoodItem, isSubmitting } = useFoodLogActions();
+
+  useEffect(() => {
+    fetchProfile().catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (logsData && Array.isArray(logsData)) {
@@ -116,36 +130,71 @@ const DashboardContent: React.FC = () => {
     setIsProcessing(true);
     setCurrentStep("idle");
 
-    const analysis = await generateAnalysis(
-      verifiedFoods,
-      user?.id || "anonymous"
-    );
-    setAnalysisResult(analysis);
+    try {
+      const analysis = await generateAnalysis(
+        verifiedFoods,
+        user?.id || "anonymous"
+      );
+      setAnalysisResult(analysis);
 
-    await createLog({ mealType: "snack", rawText: lastRawInput } as any);
+      const res = await logFoodText({ text: lastRawInput } as any);
+      const logId = res?.data?.log_id;
 
-    const newMeal: Meal = {
-      id: analysis.foodLogId,
-      name: lastRawInput,
-      timestamp: new Date(),
-      nutrition: {
-        items: verifiedFoods.map((f) => ({
-          name: f.selectedName,
-          quantity: f.quantity,
-          unit: f.unit,
-        })),
-        calories: analysis.nutritionFacts.calories,
-        protein: analysis.nutritionFacts.protein,
-        carbs: analysis.nutritionFacts.carbs,
-        fats: analysis.nutritionFacts.fat,
-        sodium: analysis.nutritionFacts.sodium > 500 ? "High" : "Normal",
-      },
-    };
-    setMeals((prev) => [newMeal, ...prev]);
+      // Debugging: Pastikan logId muncul di console browser
+      console.log("LOG ID DARI BACKEND:", logId);
 
-    setIsProcessing(false);
-    setCurrentStep("result");
-    refetchLogs();
+      if (logId && verifiedFoods.length > 0) {
+        await Promise.all(
+          verifiedFoods.map((v) => {
+            const foodIdNum = Number(v.selectedFoodId);
+            const payload: {
+              logId: string;
+              qty: number;
+              unit: string;
+              foodId?: number;
+            } = {
+              logId: String(logId),
+              qty: Number(v.quantity),
+              unit: v.unit || "porsi",
+            };
+
+            // Only include foodId if it's a valid number
+            if (!isNaN(foodIdNum) && foodIdNum > 0) {
+              payload.foodId = foodIdNum;
+            }
+
+            return logFoodItem(payload);
+          })
+        );
+      }
+
+      const newMeal: Meal = {
+        id: analysis.foodLogId,
+        name: lastRawInput,
+        timestamp: new Date(),
+        nutrition: {
+          items: verifiedFoods.map((f) => ({
+            name: f.selectedName,
+            quantity: f.quantity,
+            unit: f.unit,
+          })),
+          calories: analysis.nutritionFacts.calories,
+          protein: analysis.nutritionFacts.protein,
+          carbs: analysis.nutritionFacts.carbs,
+          fats: analysis.nutritionFacts.fat,
+          sodium: analysis.nutritionFacts.sodium > 500 ? "High" : "Normal",
+        },
+      };
+      setMeals((prev) => [newMeal, ...prev]);
+
+      setIsProcessing(false);
+      setCurrentStep("result");
+      refetchLogs();
+    } catch (err) {
+      console.error("Failed to log food:", err);
+      setIsProcessing(false);
+      // optionally show an error UI / toast here
+    }
   };
 
   const handleCloseResult = () => {
@@ -153,8 +202,6 @@ const DashboardContent: React.FC = () => {
     setMatchResults([]);
     setCurrentStep("idle");
   };
-
-  if (!user) return null;
 
   if (isLoadingLogs) {
     return (
@@ -187,7 +234,11 @@ const DashboardContent: React.FC = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-24 font-sans animate-fade-in">
       {/* Greeting */}
-      <GreetingHeader username={user.username} onAddMeal={handleOpenAddMeal} />
+      <GreetingHeader
+        // Karena user diambil langsung dari state awal, "User" hanya muncul jika localStorage kosong
+        username={user?.username || "User"}
+        onAddMeal={handleOpenAddMeal}
+      />
 
       {/* Stats Cards */}
       <StatsCards

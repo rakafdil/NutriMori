@@ -51,6 +51,7 @@ export const API_CONFIG = {
       DAILY_BY_USER: "/food-logs/daily",
       WEEKLY_BY_USER: "/food-logs/weekly",
       STREAKS: "/food-logs/streaks",
+      CREATE_ITEM: "/food-logs/item",
     },
 
     NUTRITION: {
