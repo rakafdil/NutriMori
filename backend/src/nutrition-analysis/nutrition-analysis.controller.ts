@@ -111,4 +111,9 @@ export class NutritionAnalysisController {
             limit || 10,
         );
     }
+
+    @Get('calorie-intake/weekly')
+    getWeeklyCalories(@GetUser('id') userId: string) {
+        return this.nutritionAnalysisService.getWeeklyCalorieIntake(userId);
+    }
 }

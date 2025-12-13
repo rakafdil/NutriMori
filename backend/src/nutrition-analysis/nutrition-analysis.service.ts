@@ -158,6 +158,7 @@ export class NutritionAnalysisService {
             rules,
             akgData,
         );
+        const macroRatio = this.calculateMacroRatio(totalNutrition);
 
         const micronutrients = this.calculateMicronutrients(foodLogItems, nutritionData, akgData);
 
@@ -186,7 +187,7 @@ export class NutritionAnalysisService {
             .single();
 
         if (error) throw new BadRequestException(error.message);
-        return this.formatResponse(data, totalNutrition, micronutrients);
+        return this.formatResponse(data, totalNutrition, micronutrients, macroRatio);
     }
 
         private async getUserProfile(userId: string) {
@@ -240,6 +241,20 @@ export class NutritionAnalysisService {
         return match || genderRows.find((r: any) => r.umur?.includes('19-29')) || genderRows[0];
     }
 
+    private calculateMacroRatio(n: NutritionFactsNumericDto) {
+        const proteinCal = n.protein * 4;
+        const carbCal = n.carbs * 4;
+        const fatCal = n.fat * 9;
+
+        const total = proteinCal + carbCal + fatCal;
+
+        return {
+            protein: Math.round((proteinCal / total) * 100),
+            carbs: Math.round((carbCal / total) * 100),
+            fat: Math.round((fatCal / total) * 100),
+        };
+    }
+    
         private calculateMicronutrients(
         items: FoodLogItem[],
         map: Map<string, FoodNutrient>,
@@ -369,7 +384,10 @@ export class NutritionAnalysisService {
                 sodium: item.total_sodium,
                 cholesterol: item.total_cholesterol,
             };
-            return this.formatResponse(item, nutrition, item.micronutrients || {});
+
+            const macroRatio = this.calculateMacroRatio(nutrition);
+
+            return this.formatResponse(item, nutrition, item.micronutrients || {}, macroRatio);
         });
     }
 
@@ -426,7 +444,7 @@ data?.forEach((i: any) => {
 
     // FIX SUGAR (estimasi 35% karbo bila sugar = 0/NULL)
     const rawSugar = Number(i.sugar);
-    const sugarValue = rawSugar > 0 ? rawSugar : carbs * 0.45;
+    const sugarValue = rawSugar > 0 ? rawSugar : carbs * 0.2;
 
     map.set(String(i.id), {
         food_id: String(i.id),
@@ -641,7 +659,41 @@ data?.forEach((i: any) => {
         return note;
     }
 
-    private formatResponse(data: any, n: NutritionFactsNumericDto, micro: MicronutrientsDto): NutritionAnalysisResponseDto {
+    async getWeeklyCalorieIntake(userId: string) {
+        const supabase = this.supabaseService.getClient();
+
+        const { data, error } = await supabase
+            .from('nutrition_analysis')
+            .select('total_calories, created_at')
+            .eq('user_id', userId)
+            .gte(
+                'created_at',
+                new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
+            )
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            throw new BadRequestException(error.message);
+        }
+
+        // Group by day
+        const map = new Map<string, number>();
+
+        data.forEach(item => {
+            const day = new Date(item.created_at)
+                .toLocaleDateString('en-US', { weekday: 'short' }); // Mon, Tue
+
+            map.set(day, (map.get(day) || 0) + item.total_calories);
+        });
+
+        return Array.from(map.entries()).map(([day, calories]) => ({
+            day,
+            calories: Math.round(calories),
+        }));
+    }
+
+
+    private formatResponse(data: any, n: NutritionFactsNumericDto, micro: MicronutrientsDto, macroRatio?: { protein: number; carbs: number; fat: number }): NutritionAnalysisResponseDto {
         const createdAt = data?.created_at ? new Date(data.created_at) : new Date();
         const updatedAt = data?.updated_at ? new Date(data.updated_at) : undefined;
 
@@ -658,6 +710,7 @@ data?.forEach((i: any) => {
                 sodium: n.sodium ? `${n.sodium}mg` : undefined,
                 cholesterol: n.cholesterol ? `${n.cholesterol}mg` : undefined,
             },
+            macroRatio,
             micronutrients: micro,
             healthTags: data.health_tags || [],
             warnings: data.warnings || [],
