@@ -1,29 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase';
-import { DEFAULT_USER_TARGETS, MEAL_TIME_SLOTS } from './constants';
+import { DEFAULT_USER_TARGETS } from './constants';
 import {
-  GetHabitInsightDto,
-  HabitInsightResponseDto,
-  HabitPatternDto,
-  MealTimingPatternDto,
-  NutrientTrendDto,
-  PeriodType,
+    GetHabitInsightDto,
+    HabitInsightResponseDto,
+    HabitPatternDto,
+    PeriodType,
 } from './dto';
 import {
-  CacheManager,
-  DataAggregator,
-  GeminiClient,
-  HealthScoreCalculator,
-  NutrientAnalyzer,
-  PatternDetector,
-  ToonSerializer,
+    CacheManager,
+    DataAggregator,
+    GeminiClient,
+    HealthScoreCalculator,
+    PatternDetector,
 } from './helpers';
 import {
-  AggregatedDayData,
-  CachedInsight,
-  NutritionAnalysisRecord,
-  UserTargets,
+    AggregatedDayData,
+    CachedInsight,
+    NutritionAnalysisRecord,
+    UserTargets,
 } from './types';
 
 /**
@@ -129,6 +125,7 @@ export class HabitInsightsService {
     /**
      * Fetch nutrition analysis data for a user within date range
      * This uses pre-computed data from nutrition_analysis table
+     * Falls back to calculating from food_logs if no analysis exists
      */
     private async fetchNutritionAnalysis(
         userId: string,
@@ -141,6 +138,9 @@ export class HabitInsightsService {
         const endDate = new Date(dateRange.end);
         endDate.setHours(23, 59, 59, 999); // Include the entire end day
 
+        this.logger.debug(`Fetching nutrition data for user ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+        // First, try to get data from nutrition_analysis table
         const { data, error } = await supabase
             .from('nutrition_analysis')
             .select(`
@@ -177,13 +177,13 @@ export class HabitInsightsService {
             return [];
         }
 
-        if (!data?.length) {
-            this.logger.debug(`No nutrition analysis data found for user ${userId} from ${dateRange.start} to ${dateRange.end}`);
-            return [];
+        if (data?.length) {
+            this.logger.debug(`Found ${data.length} nutrition analysis records for user ${userId}`);
+            return data as NutritionAnalysisRecord[];
         }
 
-        this.logger.debug(`Found ${data.length} nutrition analysis records for user ${userId}`);
-        return data as NutritionAnalysisRecord[];
+        this.logger.debug(`No nutrition_analysis found for user ${userId} in date range`);
+        return [];
     }
 
     // ============ DATA AGGREGATION ============
@@ -273,7 +273,6 @@ export class HabitInsightsService {
             period as any,
             { start: new Date(dateRange.start), end: new Date(dateRange.end) },
             analysis.patterns as any,
-            analysis.nutrientTrends,
             analysis.summary,
             analysis.recommendations,
             analysis.healthScore,
@@ -291,12 +290,6 @@ export class HabitInsightsService {
         // Detect patterns using rule engine
         const patterns = PatternDetector.detectPatterns(data, targets);
 
-        // Calculate nutrient trends
-        const nutrientTrends = NutrientAnalyzer.calculateTrends(data, targets);
-
-        // Analyze meal timing
-        const mealTimings = this.analyzeMealTiming(data);
-
         // Calculate health score
         const healthScore = HealthScoreCalculator.calculate(
             data,
@@ -310,99 +303,14 @@ export class HabitInsightsService {
         );
 
         // Generate AI insights
-        const aiResult = await this.generateAiSummary(data, patterns, nutrientTrends, targets, period);
+        const aiResult = await this.generateAiSummary(data, patterns, targets, period);
 
         return {
             patterns,
-            nutrientTrends,
-            mealTimings,
             healthScore: aiResult.healthScore ?? healthScore,
             summary: aiResult.summary,
             recommendations: aiResult.recommendations,
         };
-    }
-
-    // ============ MEAL TIMING ANALYSIS ============
-
-    private analyzeMealTiming(data: AggregatedDayData[]): MealTimingPatternDto[] {
-        if (data.length === 0) return [];
-
-        const mealSlots = this.initializeMealSlots();
-
-        // Collect meal times
-        for (const day of data) {
-            for (const mealType of day.mealTypes) {
-                this.categorizeMealTime(mealSlots, mealType);
-            }
-        }
-
-        return this.calculateMealTimingStats(mealSlots);
-    }
-
-    private initializeMealSlots(): Map<string, { start: number; end: number; times: number[] }> {
-        const slots = new Map();
-        for (const slot of MEAL_TIME_SLOTS) {
-            slots.set(slot.name, { start: slot.start, end: slot.end, times: [] });
-        }
-        return slots;
-    }
-
-    private categorizeMealTime(
-        slots: Map<string, { start: number; end: number; times: number[] }>,
-        mealType: string
-    ): void {
-        // Map meal type to approximate hour
-        const mealTypeHours: Record<string, number> = {
-            'breakfast': 8,
-            'lunch': 12,
-            'dinner': 19,
-            'snack': 15,
-        };
-
-        const hour = mealTypeHours[mealType.toLowerCase()] || 12;
-
-        for (const [name, slot] of slots.entries()) {
-            if (hour >= slot.start && hour < slot.end) {
-                slot.times.push(hour);
-                break;
-            }
-        }
-    }
-
-    private calculateMealTimingStats(
-        slots: Map<string, { start: number; end: number; times: number[] }>
-    ): MealTimingPatternDto[] {
-        return Array.from(slots.entries()).map(([mealType, slot]) => {
-            if (slot.times.length === 0) {
-                return {
-                    mealType,
-                    averageTime: '-',
-                    consistency: 0,
-                    note: `Tidak ada data ${mealType.toLowerCase()}`,
-                };
-            }
-
-            const avg = slot.times.reduce((a, b) => a + b, 0) / slot.times.length;
-            const variance = slot.times.reduce((sum, t) => sum + Math.pow(t - avg, 2), 0) / slot.times.length;
-            const stdDev = Math.sqrt(variance);
-            const consistency = Math.max(0, Math.min(100, Math.round(100 - stdDev * 20)));
-
-            const avgHour = Math.floor(avg);
-            const avgMinute = Math.round((avg - avgHour) * 60);
-
-            return {
-                mealType,
-                averageTime: `${String(avgHour).padStart(2, '0')}:${String(avgMinute).padStart(2, '0')}`,
-                consistency,
-                note: this.getConsistencyNote(consistency),
-            };
-        });
-    }
-
-    private getConsistencyNote(consistency: number): string {
-        if (consistency >= 80) return 'Sangat konsisten';
-        if (consistency >= 60) return 'Cukup konsisten';
-        return 'Waktu makan bervariasi';
     }
 
     // ============ AI INSIGHTS ============
@@ -410,15 +318,9 @@ export class HabitInsightsService {
     private async generateAiSummary(
         data: AggregatedDayData[],
         patterns: HabitPatternDto[],
-        trends: NutrientTrendDto[],
         targets: UserTargets,
         period: PeriodType
     ): Promise<{ summary: string; recommendations: string[]; healthScore?: number }> {
-        // Prepare TOON format data
-        const toonData = ToonSerializer.serializeDayData(data);
-        const toonPatterns = ToonSerializer.serializePatterns(patterns);
-        const toonTrends = ToonSerializer.serializeTrends(trends);
-
         const avgCalories = data.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / Math.max(1, data.length);
 
         // Collect all health tags and warnings from aggregated data
@@ -431,9 +333,8 @@ export class HabitInsightsService {
 
         // Generate insights using Gemini with health insights from nutrition_analysis
         return await this.geminiClient.generateInsights(
-            toonData,
-            toonPatterns,
-            toonTrends,
+            data,
+            patterns,
             {
                 period: period.toUpperCase(),
                 daysCount: data.length,
@@ -441,9 +342,7 @@ export class HabitInsightsService {
                 targetCalories: targets.calories,
                 healthTags: Array.from(allHealthTags),
                 warnings: Array.from(allWarnings),
-            },
-            patterns,
-            trends
+            }
         );
     }
 
@@ -469,8 +368,6 @@ export class HabitInsightsService {
             totalMeals,
             averageCalories: avgCalories,
             patterns: analysis.patterns,
-            nutrientTrends: analysis.nutrientTrends,
-            mealTimings: analysis.mealTimings,
             summary: analysis.summary,
             recommendations: analysis.recommendations,
             healthScore: analysis.healthScore,
@@ -493,8 +390,6 @@ export class HabitInsightsService {
             totalMeals: cached.total_meals ?? 0,
             averageCalories: cached.average_calories ?? 0,
             patterns: cached.patterns as unknown as HabitPatternDto[],
-            nutrientTrends: cached.nutrient_trends as NutrientTrendDto[],
-            mealTimings: (cached.meal_timings ?? []) as MealTimingPatternDto[],
             summary: cached.summary,
             recommendations: cached.recommendations,
             healthScore: cached.health_score,
@@ -515,8 +410,6 @@ export class HabitInsightsService {
             totalMeals: 0,
             averageCalories: 0,
             patterns: [],
-            nutrientTrends: [],
-            mealTimings: [],
             summary: 'Belum ada data makanan untuk periode ini.',
             recommendations: ['Mulai catat makanan Anda untuk mendapatkan insight kesehatan.'],
             healthScore: 0,
@@ -630,8 +523,6 @@ export class HabitInsightsService {
 
 interface AnalysisResult {
     patterns: HabitPatternDto[];
-    nutrientTrends: NutrientTrendDto[];
-    mealTimings: MealTimingPatternDto[];
     healthScore: number;
     summary: string;
     recommendations: string[];

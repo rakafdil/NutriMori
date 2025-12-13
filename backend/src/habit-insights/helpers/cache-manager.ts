@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
 import { CACHE_EXPIRY_DAYS } from '../constants';
-import { HabitInsightResponseDto, HabitPatternDto, NutrientTrendDto, PeriodType } from '../dto';
+import { HabitInsightResponseDto, HabitPatternDto, PeriodType } from '../dto';
 import { AggregatedDayData, CachedInsight } from '../types';
 
 /**
@@ -58,7 +58,6 @@ export class CacheManager {
         period: Period,
         dateRange: { start: Date; end: Date },
         patterns: HabitPatternDto[],
-        nutrientTrends: NutrientTrendDto[],
         summary: string,
         recommendations: string[],
         healthScore: number,
@@ -75,7 +74,6 @@ export class CacheManager {
                 date_range_start: dateRange.start.toISOString(),
                 date_range_end: dateRange.end.toISOString(),
                 patterns,
-                nutrient_trends: nutrientTrends,
                 summary,
                 recommendations,
                 health_score: healthScore,
@@ -106,8 +104,6 @@ export class CacheManager {
             },
             summary: cached.summary,
             patterns: cached.patterns as unknown as HabitPatternDto[],
-            nutrientTrends: cached.nutrient_trends as NutrientTrendDto[],
-            mealTimings: cached.meal_timings ?? [],
             recommendations: cached.recommendations,
             healthScore: cached.health_score,
             daysAnalyzed,

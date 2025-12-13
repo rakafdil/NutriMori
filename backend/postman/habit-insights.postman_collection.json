@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "NutriMori - Habit Insights",
-    "description": "API endpoints untuk analisis pola makan pengguna dengan AI-powered insights.\n\n## Fitur Utama\n- Deteksi pola makan (positif/negatif)\n- Analisis tren nutrisi\n- Skor kesehatan (0-100)\n- Rekomendasi AI (Gemini)\n- Caching untuk efisiensi\n\n## Periode Tersedia\n- `weekly` - 7 hari terakhir\n- `monthly` - 30 hari terakhir\n- `yearly` - 365 hari terakhir\n- `overall` - Semua data (max 5 tahun)",
+    "description": "API endpoints untuk analisis pola makan pengguna dengan AI-powered insights.\n\n## Fitur Utama\n- Deteksi pola makan (positif/negatif)\n- Skor kesehatan (0-100)\n- Rekomendasi AI (Gemini)\n- Caching untuk efisiensi\n\n## Periode Tersedia\n- `weekly` - 7 hari terakhir\n- `monthly` - 30 hari terakhir\n- `yearly` - 365 hari terakhir\n- `overall` - Semua data (max 5 tahun)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -40,7 +40,7 @@
                 }
               ]
             },
-            "description": "Mendapatkan insight pola makan untuk 7 hari terakhir.\n\n**Response Fields:**\n- `patterns` - Pola yang terdeteksi (positif/negatif)\n- `nutrientTrends` - Tren nutrisi dengan status\n- `mealTimings` - Konsistensi waktu makan\n- `healthScore` - Skor kesehatan (0-100)\n- `recommendations` - Saran dari AI"
+            "description": "Mendapatkan insight pola makan untuk 7 hari terakhir.\n\n**Response Fields:**\n- `patterns` - Pola yang terdeteksi (positif/negatif)\n- `healthScore` - Skor kesehatan (0-100)\n- `recommendations` - Saran dari AI"
           },
           "response": [
             {
@@ -54,7 +54,7 @@
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "body": "{\n  \"userId\": \"user-uuid-here\",\n  \"period\": \"weekly\",\n  \"dateRange\": {\n    \"start\": \"2024-12-06\",\n    \"end\": \"2024-12-13\"\n  },\n  \"daysAnalyzed\": 7,\n  \"totalMeals\": 21,\n  \"averageCalories\": 2150,\n  \"patterns\": [\n    {\n      \"type\": \"positive\",\n      \"message\": \"Pola makan konsisten dengan kalori stabil\",\n      \"impact\": \"High\",\n      \"frequency\": \"Daily\"\n    },\n    {\n      \"type\": \"negative\",\n      \"message\": \"Melewatkan sarapan 3 hari\",\n      \"impact\": \"High\",\n      \"daysDetected\": [\"Monday\", \"Wednesday\", \"Friday\"]\n    }\n  ],\n  \"nutrientTrends\": [\n    {\n      \"nutrient\": \"Protein\",\n      \"averageDaily\": 65.5,\n      \"trend\": \"stable\",\n      \"recommended\": 60,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Gula\",\n      \"averageDaily\": 58.2,\n      \"trend\": \"increasing\",\n      \"recommended\": 50,\n      \"status\": \"Above target\"\n    }\n  ],\n  \"mealTimings\": [\n    {\n      \"mealType\": \"Breakfast\",\n      \"averageTime\": \"07:30\",\n      \"consistency\": 85,\n      \"note\": \"Sangat konsisten\"\n    },\n    {\n      \"mealType\": \"Lunch\",\n      \"averageTime\": \"12:15\",\n      \"consistency\": 72,\n      \"note\": \"Cukup konsisten\"\n    },\n    {\n      \"mealType\": \"Dinner\",\n      \"averageTime\": \"19:00\",\n      \"consistency\": 65,\n      \"note\": \"Cukup konsisten\"\n    }\n  ],\n  \"summary\": \"Kebiasaan makan cukup baik dengan 2 pola positif. Perlu perbaikan pada konsistensi sarapan.\",\n  \"recommendations\": [\n    \"Usahakan sarapan sebelum jam 9 pagi dengan menu berprotein.\",\n    \"Kurangi minuman manis dan dessert untuk menurunkan asupan gula.\",\n    \"Pertahankan pola makan seimbang dengan sayur dan buah setiap hari.\"\n  ],\n  \"healthScore\": 72,\n  \"generatedAt\": \"2024-12-13T10:30:00.000Z\"\n}"
+              "body": "{\n  \"userId\": \"user-uuid-here\",\n  \"period\": \"weekly\",\n  \"dateRange\": {\n    \"start\": \"2024-12-06\",\n    \"end\": \"2024-12-13\"\n  },\n  \"daysAnalyzed\": 7,\n  \"totalMeals\": 21,\n  \"averageCalories\": 2150,\n  \"patterns\": [\n    {\n      \"type\": \"positive\",\n      \"message\": \"Pola makan konsisten dengan kalori stabil\",\n      \"impact\": \"High\",\n      \"frequency\": \"Daily\"\n    },\n    {\n      \"type\": \"negative\",\n      \"message\": \"Melewatkan sarapan 3 hari\",\n      \"impact\": \"High\",\n      \"daysDetected\": [\"Monday\", \"Wednesday\", \"Friday\"]\n    }\n  ],\n  \"summary\": \"Kebiasaan makan cukup baik dengan 2 pola positif. Perlu perbaikan pada konsistensi sarapan.\",\n  \"recommendations\": [\n    \"Usahakan sarapan sebelum jam 9 pagi dengan menu berprotein.\",\n    \"Kurangi minuman manis dan dessert untuk menurunkan asupan gula.\",\n    \"Pertahankan pola makan seimbang dengan sayur dan buah setiap hari.\"\n  ],\n  \"healthScore\": 72,\n  \"generatedAt\": \"2024-12-13T10:30:00.000Z\"\n}"
             }
           ]
         },
@@ -267,45 +267,6 @@
               "code": 200,
               "_postman_previewlanguage": "json",
               "body": "{\n  \"period\": \"monthly\",\n  \"dateRange\": {\n    \"start\": \"2024-11-13\",\n    \"end\": \"2024-12-13\"\n  },\n  \"patterns\": [\n    {\n      \"type\": \"positive\",\n      \"message\": \"Konsisten makan sayur saat makan siang\",\n      \"impact\": \"Medium\",\n      \"streak\": 18\n    },\n    {\n      \"type\": \"positive\",\n      \"message\": \"Asupan serat memenuhi target\",\n      \"impact\": \"Medium\",\n      \"streak\": 22\n    },\n    {\n      \"type\": \"negative\",\n      \"message\": \"Asupan gula berlebih di akhir pekan\",\n      \"impact\": \"Medium\",\n      \"daysDetected\": [\"Saturday\", \"Sunday\"]\n    }\n  ],\n  \"positiveCount\": 2,\n  \"negativeCount\": 1,\n  \"neutralCount\": 0\n}"
-            }
-          ]
-        },
-        {
-          "name": "Get Nutrient Trends",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/habit-insights/nutrients?period=monthly",
-              "host": ["{{base_url}}"],
-              "path": ["habit-insights", "nutrients"],
-              "query": [
-                {
-                  "key": "period",
-                  "value": "monthly"
-                }
-              ]
-            },
-            "description": "Mendapatkan tren nutrisi saja.\n\n**Response:**\n- `nutrientTrends` array dengan detail setiap nutrisi\n- Berguna untuk grafik/chart"
-          },
-          "response": [
-            {
-              "name": "Success Response",
-              "originalRequest": {
-                "method": "GET",
-                "url": {
-                  "raw": "{{base_url}}/habit-insights/nutrients?period=monthly"
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "body": "{\n  \"period\": \"monthly\",\n  \"dateRange\": {\n    \"start\": \"2024-11-13\",\n    \"end\": \"2024-12-13\"\n  },\n  \"nutrientTrends\": [\n    {\n      \"nutrient\": \"Protein\",\n      \"averageDaily\": 58.3,\n      \"trend\": \"increasing\",\n      \"recommended\": 60,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Karbohidrat\",\n      \"averageDaily\": 285.5,\n      \"trend\": \"stable\",\n      \"recommended\": 300,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Lemak\",\n      \"averageDaily\": 62.1,\n      \"trend\": \"stable\",\n      \"recommended\": 65,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Serat\",\n      \"averageDaily\": 28.4,\n      \"trend\": \"increasing\",\n      \"recommended\": 30,\n      \"status\": \"On target\"\n    },\n    {\n      \"nutrient\": \"Gula\",\n      \"averageDaily\": 55.2,\n      \"trend\": \"stable\",\n      \"recommended\": 50,\n      \"status\": \"Above target\"\n    }\n  ]\n}"
             }
           ]
         },

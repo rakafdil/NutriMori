@@ -136,13 +136,3 @@ export const GEMINI_CONFIG = {
     temperature: 0.7,
     maxOutputTokens: 400,
 };
-
-// ============ NUTRIENT DISPLAY CONFIG ============
-
-export const NUTRIENT_CONFIG = [
-    { key: 'protein', name: 'Protein', targetKey: 'protein' },
-    { key: 'carbs', name: 'Karbohidrat', targetKey: 'carbs' },
-    { key: 'fat', name: 'Lemak', targetKey: 'fat' },
-    { key: 'fiber', name: 'Serat', targetKey: 'fiber' },
-    { key: 'sugar', name: 'Gula', targetKey: 'sugar' },
-] as const;
