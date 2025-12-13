@@ -4,13 +4,13 @@ import { MealTimingPatternDto, NutrientTrendDto } from '../dto';
 
 /**
  * Joined food_logs data from Supabase
+ * Note: food_logs table uses created_at, not log_date
  */
 export interface JoinedFoodLog {
     log_id: string;
     user_id: string;
     meal_type: string;
-    log_date: string;
-    created_at: string;
+    created_at: string;  // Used for date filtering
 }
 
 /**

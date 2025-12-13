@@ -20,8 +20,9 @@ export class DataAggregator {
 
     /**
      * Helper to get food_logs data (handles both array and object)
+     * Uses created_at as the date field (food_logs doesn't have log_date)
      */
-    private static getFoodLog(record: NutritionAnalysisRecord): { log_date?: string; meal_type?: string } {
+    private static getFoodLog(record: NutritionAnalysisRecord): { created_at?: string; meal_type?: string } {
         const logs = record.food_logs;
         if (!logs) return {};
         if (Array.isArray(logs)) return logs[0] || {};
@@ -38,7 +39,8 @@ export class DataAggregator {
 
         for (const record of records) {
             const foodLog = this.getFoodLog(record);
-            const logDate = foodLog.log_date || record.created_at;
+            // Use created_at from food_logs or nutrition_analysis
+            const logDate = foodLog.created_at || record.created_at;
             const date = new Date(logDate).toISOString().split('T')[0];
             
             if (!grouped.has(date)) {

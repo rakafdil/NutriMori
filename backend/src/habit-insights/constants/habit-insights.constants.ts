@@ -131,7 +131,8 @@ export const CACHE_EXPIRY_DAYS: Record<PeriodType, number> = {
 // ============ GEMINI CONFIG ============
 
 export const GEMINI_CONFIG = {
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+    // Updated to gemini-2.0-flash-lite (more quota-friendly)
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent',
     temperature: 0.7,
     maxOutputTokens: 400,
 };
