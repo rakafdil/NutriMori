@@ -4,6 +4,7 @@ import {
   CreateFoodLogDto,
   LogFoodInputDto,
   UpdateFoodLogDto,
+  CreateFoodLogItemDto,
 } from "@/services/food-logs.service"; // Sesuaikan path service Anda
 
 // --- Tipe Data State ---
@@ -180,6 +181,21 @@ export const useFoodLogActions = () => {
     }
   };
 
+  const logFoodItem = async (input: CreateFoodLogItemDto) => {
+    startAction();
+    try {
+      const result = await FoodLogsService.logFoodItem(input);
+      console.log("SUCCESS FOOD ITEM:", result);
+      setIsSubmitting(false);
+      return { success: true, data: result };
+    } catch (err: any) {
+      setIsSubmitting(false);
+      setError(err.message || "Gagal logging food");
+      console.log("ERROR FOOD ITEM:", err.message);
+      return { success: false, error: err };
+    }
+  };
+
   const updateLog = async (id: string, data: UpdateFoodLogDto) => {
     startAction();
     try {
@@ -209,6 +225,7 @@ export const useFoodLogActions = () => {
   return {
     createLog,
     logFoodText,
+    logFoodItem,
     updateLog,
     deleteLog,
     isSubmitting,

@@ -9,10 +9,17 @@ import {
   Post,
   Query,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { GetUser } from '../auth/decorators';
 import { JwtAuthGuard } from '../auth/guards';
-import { CreateFoodLogDto, LogFoodInputDto, UpdateFoodLogDto } from './dto';
+import {
+  CreateFoodLogDto,
+  CreateFoodLogItemDto,
+  LogFoodInputDto,
+  UpdateFoodLogDto,
+} from './dto';
 import { FoodLogsService } from './food-logs.service';
 import { MealType } from './types';
 
@@ -90,6 +97,15 @@ export class FoodLogsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.foodLogsService.findOne(userId, id);
+  }
+
+  @Post('/item')
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
+  async createFoodLogItem(
+    @GetUser('id') userId: string,
+    @Body() itemDto: CreateFoodLogItemDto,
+  ) {
+    return this.foodLogsService.createFoodLogItem(userId, itemDto);
   }
 
   @Patch(':id')

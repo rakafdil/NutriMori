@@ -1,8 +1,7 @@
-Nama Bahan Makanan,Mentah/Olahan,Kelompok Makanan,Energi,Protein,Lemak Total,Karbohidrat,Gula,Serat,Kalsium,Fosfor,Besi,Magnesium,Kalium,Natrium,Seng,Tembaga,Vitamin C,Vitamin B1,Vitamin B2,Vitamin B3,Vitamin B6,Vitamin B9,Vitamin B12,Vitamin A,Vitamin D,Vitamin E,Vitamin K,Lemak Jenuh,Lemak Tunggal,Lemak Ganda,Kolesterol
+name,condition,food_group,energy,protein,total_fat,carbohydrate,sugar,fiber,calcium,phosphorus,iron,magnesium,potassium,sodium,zinc,copper,vitamin_c,vitamin_b1,vitamin_b2,vitamin_b3,vitamin_b6,vitamin_b9,vitamin_b12,vitamin_a,vitamin_d,vitamin_e,vitamin_k,saturated_fat,monounsaturated_fat,polyunsaturated_fat,cholesterol
 "Abiyuch, mentah",Mentah,Lainnya,69,1.5,0.1,17.6,8.55,5.3,8.0,47.0,1.61,24,304.0,20.0,0.31,0.057,54.1,0.0,0.0,0.0,0.0,0,0.0,5.0,0.0,0.0,0.0,0.014,0.0,0.0,0.0
 "Acar dan pimiento roti, babi",Olahan,Daging & Unggas,225,11.23,15.95,8.46,8.46,1.5,109.0,153.0,1.33,34,371.0,1.04,1.68,0.105,7.8,0.392,0.115,2.486,0.418,37,0.54,78.0,0.8,0.4,5.1,5.287,7.06,2.804,58.0
 "Acar, chowchow, dengan mustard bawang kembang kol, manis",Olahan,Sayuran,121,1.5,0.9,26.64,23.88,1.5,23.0,22.0,1.4,21,200.0,527.0,0.23,0.092,6.0,0.0,0.02,0.0,0.01,5,0.0,5.0,0.0,0.16,61.6,0.149,0.17,0.397,0.0
-"Acerola, (cherry India barat), mentah",Mentah,Lainnya,32,0.4,0.3,7.69,0.0,1.1,12.0,11.0,0.2,18,146.0,7.0,0.1,0.086,1.677.6,0.02,0.06,0.4,0.009,14,0.0,38.0,0.0,0.0,0.0,0.068,0.082,0.09,0.0
 "Agave, kering (Barat daya)",Mentah,Lainnya,341,1.71,0.69,81.98,50.7,15.6,770.0,37.0,3.64,207,767.0,14.0,12.1,0.189,0.3,0.021,0.644,0.87,0.216,7,0.0,1.0,0.0,0.76,0.5,0.0,0.0,0.0,0.0
 "Agutuk, daging karibu (es krim Alaska) (asli Alaska)",Mentah,Susu & Olahan,258,21.7,18.6,0.9,0.0,0.0,16.0,170.0,4.55,20,228.0,95.0,3.83,0.19,2.2,0.18,0.66,4.26,0.23,4,4.83,0.0,0.0,0.0,0.0,5.1,8.7,3.6,89.0
 "Air, Botol, Non-Karbonasi, Calistoga",Olahan,Minuman,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0.0,0.0,0.0,0.0,0,0.0,0.0,0.0,0.0,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

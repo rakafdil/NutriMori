@@ -84,13 +84,16 @@ export interface AnalysisResult {
  */
 export async function matchFoods(input: string): Promise<MatchResult[]> {
   try {
-    const response = await fetch("http://localhost:5050/api/match-foods", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text: input }),
-    });
+    const response = await fetch(
+      "https://jakij4ki-nutrimori-api.hf.space/api/match-foods",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: input }),
+      }
+    );
 
     if (!response.ok) {
       console.error("Parse food API error:", response.status);
