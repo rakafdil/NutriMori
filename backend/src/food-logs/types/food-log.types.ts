@@ -25,7 +25,6 @@ export interface FoodLog {
   raw_text?: string;
   meal_type?: MealType;
   created_at: string;
-  parsed_by_llm: boolean;
 }
 
 export interface FoodLogWithRelations extends FoodLog {

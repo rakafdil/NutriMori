@@ -1,8 +1,21 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --animate-spin-slow: spin 10s linear infinite;
+  /* Mendaftarkan variable warna kamu */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* Animasi */
+  --animate-spin-slow: spin 8s linear infinite;
   --animate-spin-slower: spin 12s linear infinite;
+  --animate-fade-in: fadeIn 0.5s ease-in-out;
+  --animate-fade-in-up: fadeInUp 0.6s ease-out;
+
+  /* Keyframes */
+  --keyframes-fadeIn: fadeIn;
+  --keyframes-fadeInUp: fadeInUp;
 }
 
 :root {
@@ -10,40 +23,56 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 .dark {
   --background: #0a0a0a;
   --foreground: #ededed;
 }
 
+/* Definisi Keyframes (Animasi) */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Base Styles */
+/* PENTING: Jangan pakai @apply di sini untuk background body di v4 agar tidak error */
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Utilities lainnya */
+.choices {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.choices::-webkit-scrollbar {
+  display: none;
+}
+
 button {
   cursor: pointer;
-}
-
-.choices {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
-}
-
-.choices::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
 }

@@ -16,6 +16,14 @@ export interface LogFoodInputDto {
   // field lain
 }
 
+export interface CreateFoodLogItemDto {
+  logId: string;
+  foodId?: number; // bigint in DB, so number here
+  qty?: number;
+  unit?: string;
+  gram_weight?: number;
+}
+
 export interface UpdateFoodLogDto extends Partial<CreateFoodLogDto> {}
 
 export interface FoodLogFilterParams {
@@ -69,6 +77,27 @@ export const FoodLogsService = {
   },
 
   /**
+   * Log food input specialized (POST /food-logs/log)
+   */
+  logFoodItem: async (input: CreateFoodLogItemDto) => {
+    try {
+      const response = await fetch(
+        getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.CREATE_ITEM),
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(input),
+        }
+      );
+
+      if (!response.ok) throw await response.json();
+      return await response.json();
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  /**
    * Get all logs with filters (GET /food-logs/lists)
    */
   findAll: async (params?: FoodLogFilterParams) => {
@@ -83,7 +112,7 @@ export const FoodLogsService = {
         method: "GET",
         headers: getAuthHeaders(),
       });
-
+      console.log(response);
       if (!response.ok) throw await response.json();
       return await response.json();
     } catch (error) {

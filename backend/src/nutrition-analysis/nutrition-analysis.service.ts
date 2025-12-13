@@ -26,6 +26,7 @@ interface FoodNutrient {
     carbs: number;
     fat: number;
     sugar: number;
+    sugar_estimated?: boolean;
     fiber: number;
     sodium: number;
     cholesterol: number;
@@ -145,9 +146,9 @@ export class NutritionAnalysisService {
         const totalNutrition = this.calculateTotalNutrition(foodLogItems, nutritionData);
 
         const [preferences, rules, userProfile] = await Promise.all([
-            this.getUserPreferences(userId),
+            this.getUserPreferences(targetUserId),
             this.getNutritionRules(),
-            this.getUserProfile(userId),
+            this.getUserProfile(targetUserId),
         ]);
 
         const akgData = await this.getAkgData(userProfile?.age, userProfile?.gender);
@@ -158,10 +159,11 @@ export class NutritionAnalysisService {
             rules,
             akgData,
         );
+        const macroRatio = this.calculateMacroRatio(totalNutrition);
 
         const micronutrients = this.calculateMicronutrients(foodLogItems, nutritionData, akgData);
 
-        const analysisNotes = this.buildNotes(totalNutrition, healthTags, warnings);
+        const sugarEstimated = this.isSugarEstimated(foodLogItems, nutritionData);
 
         const nutritionInsert = {
             food_log_id: foodLogId,
@@ -171,12 +173,14 @@ export class NutritionAnalysisService {
             total_carbs: totalNutrition.carbs,
             total_fat: totalNutrition.fat,
             total_sugar: totalNutrition.sugar,
+            sugar_estimated: sugarEstimated,
             total_fiber: totalNutrition.fiber,
             total_sodium: totalNutrition.sodium,
             total_cholesterol: totalNutrition.cholesterol,
             micronutrients,
             health_tags: healthTags,
             warnings,
+            meets_goals: meetsGoals,
         };
 
         const { data, error } = await supabase
@@ -186,7 +190,7 @@ export class NutritionAnalysisService {
             .single();
 
         if (error) throw new BadRequestException(error.message);
-        return this.formatResponse(data, totalNutrition, micronutrients);
+        return this.formatResponse(data, totalNutrition, micronutrients, macroRatio);
     }
 
         private async getUserProfile(userId: string) {
@@ -240,6 +244,24 @@ export class NutritionAnalysisService {
         return match || genderRows.find((r: any) => r.umur?.includes('19-29')) || genderRows[0];
     }
 
+    private calculateMacroRatio(n: NutritionFactsNumericDto) {
+        const proteinCal = n.protein * 4;
+        const carbCal = n.carbs * 4;
+        const fatCal = n.fat * 9;
+
+        const total = proteinCal + carbCal + fatCal;
+
+        if (total === 0) {
+            return { protein: 0, carbs: 0, fat: 0 };
+        }
+
+        return {
+            protein: Math.round((proteinCal / total) * 100),
+            carbs: Math.round((carbCal / total) * 100),
+            fat: Math.round((fatCal / total) * 100),
+        };
+    }
+    
         private calculateMicronutrients(
         items: FoodLogItem[],
         map: Map<string, FoodNutrient>,
@@ -280,7 +302,8 @@ export class NutritionAnalysisService {
         const toPercent = (val: number, dv: number) => {
             if (val <= 0 || !dv) return undefined;
             const pct = Math.round((val / dv) * 100);
-            return pct > 0 ? `${pct}%` : '<1%';
+            if (pct > 300) return '>300%';
+            return `${pct}%`;
         };
 
         // Default DV jika AKG tidak ditemukan (Fallback ke standar umum)
@@ -294,6 +317,7 @@ export class NutritionAnalysisService {
         if (total.calcium > 0) result.calcium = toPercent(total.calcium, akg?.kalsium_mg || defaults.calcium);
         if (total.vitamin_a > 0) result.vitamin_a = toPercent(total.vitamin_a, akg?.vit_a_re || defaults.vit_a);
         if (total.vitamin_d > 0) result.vitamin_d = toPercent(total.vitamin_d, akg?.vit_d_mcg || defaults.vit_d);
+        if (total.vitamin_b12 > 0)  result.vitamin_b12 = toPercent(total.vitamin_b12, akg?.vit_b12_mcg || defaults.vit_b12);
         
         if (total.potassium > 0) result['potassium'] = toPercent(total.potassium, akg?.kalium_mg || defaults.potassium);
         if (total.magnesium > 0) result['magnesium'] = toPercent(total.magnesium, akg?.magnesium_mg || defaults.magnesium);
@@ -351,13 +375,13 @@ export class NutritionAnalysisService {
             .select('*')
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
-            .limit(limit);
+            .limit(safeLimit);
 
         if (error) {
             this.logger.error(`Failed to retrieve history for user ${userId}: ${error.message}`);
             throw new BadRequestException(`Failed to retrieve analysis history: ${error.message}`);
         }
-
+        
         return (data || []).map(item => {
             const nutrition: NutritionFactsNumericDto = {
                 calories: item.total_calories,
@@ -369,7 +393,10 @@ export class NutritionAnalysisService {
                 sodium: item.total_sodium,
                 cholesterol: item.total_cholesterol,
             };
-            return this.formatResponse(item, nutrition, item.micronutrients || {});
+
+            const macroRatio = this.calculateMacroRatio(nutrition);
+
+            return this.formatResponse(item, nutrition, item.micronutrients || {}, macroRatio);
         });
     }
 
@@ -422,11 +449,20 @@ export class NutritionAnalysisService {
                 .in('id', intIds);
 
 data?.forEach((i: any) => {
-    const carbs = Number(i.carbohydrate || 0);
+    const carbs = Number(i.carbohydrate ?? 0);
 
-    // FIX SUGAR (estimasi 35% karbo bila sugar = 0/NULL)
-    const rawSugar = Number(i.sugar);
-    const sugarValue = rawSugar > 0 ? rawSugar : carbs * 0.45;
+    // Periksa nilai asli dari DB (bukan Number(...))
+    const rawSugarRaw = i.sugar;
+    let sugarValue: number;
+    let sugarEstimated = false;
+
+    if (rawSugarRaw === null || rawSugarRaw === undefined) {
+        sugarValue = Number((carbs * 0.05).toFixed(2));
+        sugarEstimated = true;
+    } else {
+        sugarValue = Number(rawSugarRaw) || 0;
+        sugarEstimated = false;
+    }
 
     map.set(String(i.id), {
         food_id: String(i.id),
@@ -435,6 +471,7 @@ data?.forEach((i: any) => {
         carbs: carbs,
         fat: Number(i.total_fat || 0),
         sugar: Number(sugarValue),
+        sugar_estimated: sugarEstimated,
         fiber: Number(i.fiber || 0),
         sodium: Number(i.sodium || 0),
         cholesterol: Number(i.cholesterol || 0),
@@ -544,17 +581,29 @@ data?.forEach((i: any) => {
         // --- DYNAMIC LOGIC BASED ON AKG ---
         if (akg) {
             // Health Tags
-            if (nutrition.protein >= (akg.protein_g * 0.3)) tags.push('High Protein'); // >30% of daily need
+            if (nutrition.calories > 0) {
+                const proteinDensity = (nutrition.protein / nutrition.calories) * 100;
+                if (!Number.isNaN(proteinDensity) && proteinDensity >= 20) tags.push('High Protein');
+
+                const sugarEnergy = (nutrition.sugar || 0) * 4;
+                const sugarRatio = sugarEnergy / nutrition.calories;
+                if (!Number.isNaN(sugarRatio) && sugarRatio > 0.1) warnings.push('High Added Sugar');
+            }
             if (nutrition.fiber && nutrition.fiber >= (akg.serat_g * 0.3)) tags.push('High Fiber');
-            
-            // Warnings
             // Batas Natrium (Sodium) biasanya 2000-2300mg, tapi kita pakai data AKG jika ada
             const sodiumLimit = akg.natrium_mg || 2000;
-            if (nutrition.sodium && nutrition.sodium > (sodiumLimit * 0.4)) warnings.push('High Sodium (Meal)'); // >40% daily limit in one meal
+            const mealSodiumLimit = sodiumLimit * 0.33; // 1/3 harian
+            if (nutrition.sodium && nutrition.sodium > mealSodiumLimit) {
+                warnings.push('High Sodium');
+            } // >40% daily limit in one meal
 
             // Gula (Sugar) - AKG Indonesia 2019 tidak spesifik gula tambahan, tapi WHO saran <50g (atau <10% energi)
             // Kita pakai estimasi 50g sehari
-            if (nutrition.sugar > 20) warnings.push('High Sugar'); 
+            const sugarEnergy = (nutrition.sugar || 0) * 4;
+            const sugarRatio = sugarEnergy / nutrition.calories;
+            if (!Number.isNaN(sugarRatio) && sugarRatio > 0.1) {
+                warnings.push('High Added Sugar');
+            }
         } else {
             // Fallback logic if AKG not found
             if (nutrition.protein >= 20) tags.push('High Protein');
@@ -563,9 +612,10 @@ data?.forEach((i: any) => {
         }
 
         // Additional static checks
-        if (nutrition.sugar <= 5) tags.push('Low Sugar');
+        if (nutrition.sugar > 0 && nutrition.sugar <= 5) {
+            tags.push('Low Sugar');
+        }
         if (nutrition.calories <= 500 && nutrition.protein > 15) tags.push('Balanced Meal');
-        if (nutrition.cholesterol && nutrition.cholesterol > 300) warnings.push('High Cholesterol');
 
         for (const r of rules) {
             const val = this.getNutrientValue(nutrition, r.nutrient);
@@ -641,7 +691,40 @@ data?.forEach((i: any) => {
         return note;
     }
 
-    private formatResponse(data: any, n: NutritionFactsNumericDto, micro: MicronutrientsDto): NutritionAnalysisResponseDto {
+    async getWeeklyCalorieIntake(userId: string) {
+        const supabase = this.supabaseService.getClient();
+
+        const { data, error } = await supabase
+            .from('nutrition_analysis')
+            .select('total_calories, created_at')
+            .eq('user_id', userId)
+            .gte(
+                'created_at',
+                new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString()
+            )
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            throw new BadRequestException(error.message);
+        }
+
+        // Group by day
+        const map = new Map<string, number>();
+
+        data.forEach(item => {
+            const day = item.created_at.slice(0, 10); // YYYY-MM-DD
+
+            map.set(day, (map.get(day) || 0) + item.total_calories);
+        });
+
+        return Array.from(map.entries()).map(([day, calories]) => ({
+            day,
+            calories: Math.round(calories),
+        }));
+    }
+
+
+    private formatResponse(data: any, n: NutritionFactsNumericDto, micro: MicronutrientsDto, macroRatio?: { protein: number; carbs: number; fat: number }): NutritionAnalysisResponseDto {
         const createdAt = data?.created_at ? new Date(data.created_at) : new Date();
         const updatedAt = data?.updated_at ? new Date(data.updated_at) : undefined;
 
@@ -658,6 +741,7 @@ data?.forEach((i: any) => {
                 sodium: n.sodium ? `${n.sodium}mg` : undefined,
                 cholesterol: n.cholesterol ? `${n.cholesterol}mg` : undefined,
             },
+            macroRatio,
             micronutrients: micro,
             healthTags: data.health_tags || [],
             warnings: data.warnings || [],
@@ -672,5 +756,12 @@ data?.forEach((i: any) => {
 
     private isValidUUID(str: string) {
         return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    }
+
+    private isSugarEstimated(items: FoodLogItem[], map: Map<string, FoodNutrient>): boolean {
+        return items.some(item => {
+            const n = map.get(String(item.food_id));
+            return n?.sugar_estimated === true;
+        });
     }
 }

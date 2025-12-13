@@ -5,6 +5,11 @@ const config: Config = {
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
+      // Add these colors so you can use 'bg-background' or 'text-foreground'
+      colors: {
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+      },
       animation: {
         "spin-slow": "spin 8s linear infinite",
         "spin-slower": "spin 12s linear infinite",
