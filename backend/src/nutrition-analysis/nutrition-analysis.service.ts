@@ -82,6 +82,37 @@ interface NutritionRule {
     created_at: string;
 }
 
+interface AkgData {
+    id: number;
+    kelompok: string;
+    umur: string;
+    energi_kkal: number;
+    protein_g: number;
+    lemak_total_g: number;
+    karbohidrat_g: number;
+    serat_g: number;
+    air_ml: number;
+    vit_a_re: number;
+    vit_d_mcg: number;
+    vit_e_mcg: number;
+    vit_k_mcg: number;
+    vit_b1_mg: number;
+    vit_b2_mg: number;
+    vit_b3_mg: number;
+    vit_b6_mg: number;
+    vit_b9_mcg: number;
+    vit_b12_mcg: number;
+    vit_c_mg: number;
+    kalsium_mg: number;
+    fosfor_mg: number;
+    magnesium_mg: number;
+    natrium_mg: number;
+    kalium_mg: number;
+    besi_mg: number;
+    seng_mg: number;
+    // ... tambahkan kolom lain jika perlu
+}
+
 @Injectable()
 export class NutritionAnalysisService {
     private readonly logger = new Logger(NutritionAnalysisService.name);
@@ -113,18 +144,22 @@ export class NutritionAnalysisService {
 
         const totalNutrition = this.calculateTotalNutrition(foodLogItems, nutritionData);
 
-        const [preferences, rules] = await Promise.all([
+        const [preferences, rules, userProfile] = await Promise.all([
             this.getUserPreferences(userId),
             this.getNutritionRules(),
+            this.getUserProfile(userId),
         ]);
+
+        const akgData = await this.getAkgData(userProfile?.age, userProfile?.gender);
 
         const { healthTags, warnings, meetsGoals } = this.analyzeHealthMetrics(
             totalNutrition,
             preferences,
             rules,
+            akgData,
         );
 
-        const micronutrients: MicronutrientsDto = {};
+        const micronutrients = this.calculateMicronutrients(foodLogItems, nutritionData, akgData);
 
         const analysisNotes = this.buildNotes(totalNutrition, healthTags, warnings);
 
@@ -153,6 +188,121 @@ export class NutritionAnalysisService {
         if (error) throw new BadRequestException(error.message);
         return this.formatResponse(data, totalNutrition, micronutrients);
     }
+
+        private async getUserProfile(userId: string) {
+        const supabase = this.supabaseService.getClient();
+        try {
+            const { data } = await supabase
+                .from('users')
+                .select('age, gender, weight_kg, height_cm')
+                .eq('id', userId)
+                .single();
+            return data || { age: 25, gender: 'Laki-laki' };
+        } catch (e) {
+            return { age: 25, gender: 'Laki-laki' };
+        }
+    }
+
+        private async getAkgData(age: number = 25, gender: string = 'Laki-laki'): Promise<AkgData | null> {
+        const supabase = this.supabaseService.getClient();
+        
+        // Ambil semua data AKG (dataset kecil, ~20 baris)
+        const { data } = await supabase.from('dataset_akg').select('*');
+        if (!data || data.length === 0) return null;
+
+        // 1. Filter Gender
+        // Asumsi kolom 'kelompok' berisi "Laki-laki" atau "Perempuan"
+        const isFemale = gender?.toLowerCase().includes('perempuan') || gender?.toLowerCase() === 'female';
+        const genderKey = isFemale ? 'Perempuan' : 'Laki-laki';
+        
+        const genderRows = data.filter((row: any) => row.kelompok && row.kelompok.includes(genderKey));
+        if (genderRows.length === 0) return data[0]; // Fallback
+
+        // 2. Filter Umur
+        // Format umur di DB biasanya: "10-12 tahun", "19-29 tahun", "80+ tahun"
+        const match = genderRows.find((row: any) => {
+            const range = String(row.umur || '');
+            
+            if (range.includes('+')) {
+                const min = parseInt(range);
+                return age >= min;
+            }
+
+            const parts = range.split('-');
+            if (parts.length === 2) {
+                const min = parseInt(parts[0]);
+                const max = parseInt(parts[1]);
+                return age >= min && age <= max;
+            }
+            return false;
+        });
+
+        return match || genderRows.find((r: any) => r.umur?.includes('19-29')) || genderRows[0];
+    }
+
+        private calculateMicronutrients(
+        items: FoodLogItem[],
+        map: Map<string, FoodNutrient>,
+        akg: AkgData | null
+    ): MicronutrientsDto {
+        // 1. Hitung total raw value
+        const total = {
+            vitamin_c: 0,
+            iron: 0,
+            calcium: 0,
+            vitamin_a: 0,
+            vitamin_d: 0,
+            vitamin_b12: 0,
+            potassium: 0,
+            magnesium: 0,
+            zinc: 0,
+        };
+
+        for (const item of items) {
+            const key = String(item.food_id);
+            const n = map.get(key);
+            if (!n) continue;
+            const mul = item.gram_weight / 100;
+
+            total.vitamin_c += (n.vitamin_c || 0) * mul;
+            total.iron += (n.iron || 0) * mul;
+            total.calcium += (n.calcium || 0) * mul;
+            total.vitamin_a += (n.vitamin_a || 0) * mul;
+            total.vitamin_d += (n.vitamin_d || 0) * mul;
+            total.vitamin_b12 += (n.vitamin_b12 || 0) * mul;
+            total.potassium += (n.potassium || 0) * mul;
+            total.magnesium += (n.magnesium || 0) * mul;
+            total.zinc += (n.zinc || 0) * mul;
+        }
+
+        // 2. Konversi ke Persentase AKG
+        const result: MicronutrientsDto = {};
+        const toPercent = (val: number, dv: number) => {
+            if (val <= 0 || !dv) return undefined;
+            const pct = Math.round((val / dv) * 100);
+            return pct > 0 ? `${pct}%` : '<1%';
+        };
+
+        // Default DV jika AKG tidak ditemukan (Fallback ke standar umum)
+        const defaults = {
+            vit_c: 90, iron: 18, calcium: 1000, vit_a: 600, vit_d: 15, 
+            vit_b12: 2.4, potassium: 4700, magnesium: 350, zinc: 11
+        };
+
+        if (total.vitamin_c > 0) result.vitamin_c = toPercent(total.vitamin_c, akg?.vit_c_mg || defaults.vit_c);
+        if (total.iron > 0) result.iron = toPercent(total.iron, akg?.besi_mg || defaults.iron);
+        if (total.calcium > 0) result.calcium = toPercent(total.calcium, akg?.kalsium_mg || defaults.calcium);
+        if (total.vitamin_a > 0) result.vitamin_a = toPercent(total.vitamin_a, akg?.vit_a_re || defaults.vit_a);
+        if (total.vitamin_d > 0) result.vitamin_d = toPercent(total.vitamin_d, akg?.vit_d_mcg || defaults.vit_d);
+        
+        if (total.potassium > 0) result['potassium'] = toPercent(total.potassium, akg?.kalium_mg || defaults.potassium);
+        if (total.magnesium > 0) result['magnesium'] = toPercent(total.magnesium, akg?.magnesium_mg || defaults.magnesium);
+        if (total.zinc > 0) result['zinc'] = toPercent(total.zinc, akg?.seng_mg || defaults.zinc);
+
+        return result;
+    }
+
+    
 
     async getAnalysisByFoodLogId(
         foodLogId: string,
@@ -382,6 +532,7 @@ data?.forEach((i: any) => {
         nutrition: NutritionFactsNumericDto,
         prefs: UserPreferences | null,
         rules: NutritionRule[],
+        akg: AkgData | null,
     ): { healthTags: string[]; warnings: string[]; meetsGoals: boolean } {
         const tags: string[] = [];
         const warnings: string[] = [];
@@ -390,27 +541,57 @@ data?.forEach((i: any) => {
         const goals = prefs?.goals?.map(g => g.toLowerCase()) ?? [];
         const history = prefs?.medical_history?.map(m => m.toLowerCase()) ?? [];
 
+        // --- DYNAMIC LOGIC BASED ON AKG ---
+        if (akg) {
+            // Health Tags
+            if (nutrition.protein >= (akg.protein_g * 0.3)) tags.push('High Protein'); // >30% of daily need
+            if (nutrition.fiber && nutrition.fiber >= (akg.serat_g * 0.3)) tags.push('High Fiber');
+            
+            // Warnings
+            // Batas Natrium (Sodium) biasanya 2000-2300mg, tapi kita pakai data AKG jika ada
+            const sodiumLimit = akg.natrium_mg || 2000;
+            if (nutrition.sodium && nutrition.sodium > (sodiumLimit * 0.4)) warnings.push('High Sodium (Meal)'); // >40% daily limit in one meal
+
+            // Gula (Sugar) - AKG Indonesia 2019 tidak spesifik gula tambahan, tapi WHO saran <50g (atau <10% energi)
+            // Kita pakai estimasi 50g sehari
+            if (nutrition.sugar > 20) warnings.push('High Sugar'); 
+        } else {
+            // Fallback logic if AKG not found
+            if (nutrition.protein >= 20) tags.push('High Protein');
+            if (nutrition.fiber && nutrition.fiber >= 5) tags.push('High Fiber');
+            if (nutrition.sodium && nutrition.sodium > 800) warnings.push('High Sodium');
+        }
+
+        // Additional static checks
+        if (nutrition.sugar <= 5) tags.push('Low Sugar');
+        if (nutrition.calories <= 500 && nutrition.protein > 15) tags.push('Balanced Meal');
+        if (nutrition.cholesterol && nutrition.cholesterol > 300) warnings.push('High Cholesterol');
+
         for (const r of rules) {
             const val = this.getNutrientValue(nutrition, r.nutrient);
             if (val === null) continue;
 
             let triggered = false;
 
+            // global rule
             if (r.target_type === 'global') {
                 if (r.max_value !== null && val > r.max_value) triggered = true;
                 if (r.min_value !== null && val < r.min_value) triggered = true;
             }
 
+            // per serving
             if (r.target_type === 'per_serving') {
                 if (r.max_value !== null && val > r.max_value) triggered = true;
             }
 
+            // user goal rules
             if (r.target_type === 'user_goal') {
                 if (!goals.includes(String(r.target_value).toLowerCase())) continue;
                 if (r.max_value !== null && val > r.max_value) triggered = true;
                 if (r.min_value !== null && val < r.min_value) triggered = true;
             }
 
+            // medical condition rules
             if (r.target_type === 'medical_condition') {
                 if (!history.some(h => h.includes(String(r.target_value).toLowerCase()))) continue;
                 if (r.max_value !== null && val > r.max_value) triggered = true;
@@ -429,8 +610,13 @@ data?.forEach((i: any) => {
             }
         }
 
-        return { healthTags: tags, warnings, meetsGoals };
+        return { 
+            healthTags: [...new Set(tags)], 
+            warnings: [...new Set(warnings)], 
+            meetsGoals 
+        };
     }
+
 
     private getNutrientValue(n: NutritionFactsNumericDto, key: string): number | null {
         const map = {
