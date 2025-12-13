@@ -55,8 +55,9 @@ export const API_CONFIG = {
     },
 
     NUTRITION: {
-      ANALYZE: "/nutrition/analyze",
-      INSIGHTS: "/nutrition/insights",
+      CREATE: "/nutrition-analysis",
+      GET_BY_FOOD_LOG: "/nutrition-analysis/food-log",
+      GET_HISTORY: "/nutrition-analysis/history",
     },
 
     NUTRITION_RULES: {

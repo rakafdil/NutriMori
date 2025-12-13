@@ -6,13 +6,29 @@ interface NutritionBreakdownProps {
   meals: Meal[];
 }
 
+const parseNumeric = (v: any): number => {
+  if (v == null) return 0;
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const n = parseFloat(v.replace(/[^\d.-]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+};
+
 const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
   const totalProtein = meals.reduce(
-    (a, b) => a + (b.nutrition?.protein ?? 0),
+    (a, b) => a + parseNumeric(b.nutrition?.protein),
     0
   );
-  const totalCarbs = meals.reduce((a, b) => a + (b.nutrition?.carbs ?? 0), 0);
-  const totalFats = meals.reduce((a, b) => a + (b.nutrition?.fats ?? 0), 0);
+  const totalCarbs = meals.reduce(
+    (a, b) => a + parseNumeric(b.nutrition?.carbs),
+    0
+  );
+  const totalFats = meals.reduce(
+    (a, b) => a + parseNumeric(b.nutrition?.fat),
+    0
+  );
 
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 h-full transition-colors">

@@ -1,14 +1,10 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { AlertCircle } from "lucide-react";
-import { MatchResult, Meal, NutritionInfo } from "@/types";
+import { MatchResult, Meal } from "@/types";
 import { useUser } from "@/context";
-import {
-  matchFoods,
-  generateAnalysis,
-  VerifiedFood,
-  AnalysisResult,
-} from "@/services/food-matcher.service";
+import { matchFoods, VerifiedFood } from "@/services/food-matcher.service";
+import { useNutritionAnalysis } from "@/hooks/useNutritionAnalysis";
 import AddMealModal from "./AddMealModal";
 import FoodVerificationModal from "./FoodVerificationModal";
 import AnalysisResultCard from "./AnalysisResultCard";
@@ -23,34 +19,51 @@ import {
   useFoodLogActions,
 } from "@/hooks/useFoodLogs";
 import { useProfile } from "@/hooks/useProfile";
+import {
+  NutritionAnalysisResponse,
+  NutritionFacts,
+} from "@/types/nutritionAnalyzer";
 
 // Flow steps
 type FlowStep = "idle" | "input" | "verify" | "result";
 
 // Transform API log to Meal
 const transformFoodLogToMeal = (log: any): Meal => {
-  const nutrition: NutritionInfo = {
+  const nutrition: NutritionFacts = {
     items: [],
     calories: 0,
-    protein: 0,
-    carbs: 0,
-    fats: 0,
-    sodium: "Normal",
+    protein: "0g",
+    carbs: "0g",
+    fat: "0g",
+    sugar: "0g",
+    fiber: "0g",
+    sodium: "0mg",
+    cholesterol: "0mg",
   };
 
   if (log.food_log_items && Array.isArray(log.food_log_items)) {
+    let totalCalories = 0;
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFat = 0;
+    let totalSodium = 0;
+
     log.food_log_items.forEach((item: any) => {
       if (item.food_items?.food_nutrients) {
         const nutrients = item.food_items.food_nutrients;
-        nutrition.calories += nutrients.calories || 0;
-        nutrition.protein += nutrients.protein || 0;
-        nutrition.carbs += nutrients.carbs || 0;
-        nutrition.fats += nutrients.fats || 0;
-        if (nutrients.sodium && nutrients.sodium > 500) {
-          nutrition.sodium = "High";
-        }
+        totalCalories += nutrients.calories || 0;
+        totalProtein += parseFloat(nutrients.protein) || 0;
+        totalCarbs += parseFloat(nutrients.carbs) || 0;
+        totalFat += parseFloat(nutrients.fat) || 0;
+        totalSodium += parseFloat(nutrients.sodium) || 0;
       }
     });
+
+    nutrition.calories = totalCalories;
+    nutrition.protein = `${totalProtein}g`;
+    nutrition.carbs = `${totalCarbs}g`;
+    nutrition.fat = `${totalFat}g`;
+    nutrition.sodium = `${totalSodium}mg`;
   }
 
   return {
@@ -80,13 +93,23 @@ const DashboardContent: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<FlowStep>("idle");
   const [isProcessing, setIsProcessing] = useState(false);
   const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(
-    null
-  );
+  const [analysisResult, setAnalysisResult] =
+    useState<NutritionAnalysisResponse | null>(null);
   const [lastRawInput, setLastRawInput] = useState("");
 
   const { fetchProfile } = useProfile();
 
+  const {
+    currentAnalysis,
+    history,
+    loading,
+    error,
+    createAnalysis,
+    fetchAnalysisById,
+    fetchHistory,
+    loadFromCache,
+    clearCurrentAnalysis,
+  } = useNutritionAnalysis();
   // Data hooks
   const {
     isLoading: isLoadingLogs,
@@ -131,12 +154,6 @@ const DashboardContent: React.FC = () => {
     setCurrentStep("idle");
 
     try {
-      const analysis = await generateAnalysis(
-        verifiedFoods,
-        user?.id || "anonymous"
-      );
-      setAnalysisResult(analysis);
-
       const res = await logFoodText({ text: lastRawInput } as any);
       const logId = res?.data?.log_id;
 
@@ -168,8 +185,12 @@ const DashboardContent: React.FC = () => {
         );
       }
 
+      // Now run analysis after all items have been logged
+      const analysis = await createAnalysis(logId);
+      setAnalysisResult(analysis);
+
       const newMeal: Meal = {
-        id: analysis.foodLogId,
+        id: analysis?.foodLogId ?? String(logId ?? "unknown"),
         name: lastRawInput,
         timestamp: new Date(),
         nutrition: {
@@ -178,11 +199,14 @@ const DashboardContent: React.FC = () => {
             quantity: f.quantity,
             unit: f.unit,
           })),
-          calories: analysis.nutritionFacts.calories,
-          protein: analysis.nutritionFacts.protein,
-          carbs: analysis.nutritionFacts.carbs,
-          fats: analysis.nutritionFacts.fat,
-          sodium: analysis.nutritionFacts.sodium > 500 ? "High" : "Normal",
+          calories: analysis?.nutritionFacts.calories || 0,
+          protein: analysis?.nutritionFacts.protein || "0g",
+          carbs: analysis?.nutritionFacts.carbs || "0g",
+          fat: analysis?.nutritionFacts.fat || "0g",
+          sugar: analysis?.nutritionFacts.sugar || "0g",
+          fiber: analysis?.nutritionFacts.fiber || "0g",
+          sodium: analysis?.nutritionFacts.sodium || "0mg",
+          cholesterol: analysis?.nutritionFacts.cholesterol || "0mg",
         },
       };
       setMeals((prev) => [newMeal, ...prev]);
@@ -193,7 +217,6 @@ const DashboardContent: React.FC = () => {
     } catch (err) {
       console.error("Failed to log food:", err);
       setIsProcessing(false);
-      // optionally show an error UI / toast here
     }
   };
 

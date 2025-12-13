@@ -7,6 +7,7 @@ const COLORS = ["#10b981", "#84cc16", "#fbbf24"];
 interface MacroDataPoint {
   name: string;
   value: number;
+  [key: string]: any;
 }
 
 interface MacronutrientChartProps {

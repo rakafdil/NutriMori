@@ -49,35 +49,6 @@ export interface VerifiedFood {
   unit: string;
 }
 
-export interface AnalysisResult {
-  analysisId: string;
-  foodLogId: string;
-  userId: string;
-  nutritionFacts: {
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    sugar: number;
-    fiber: number;
-    sodium: number;
-    cholesterol: number;
-  };
-  micronutrients: {
-    vitamin_c: string;
-    iron: string;
-    calcium: string;
-    vitamin_a: string;
-    vitamin_d: string;
-  };
-  healthTags: string[];
-  analysisNotes: string;
-  meetsGoals: boolean;
-  warnings: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
 /**
  * Match natural language input to food candidates
  * Replace this implementation with real AI later
@@ -114,54 +85,6 @@ export async function matchFoods(input: string): Promise<MatchResult[]> {
     console.error("Failed to parse food:", error);
     return [];
   }
-}
-
-/**
- * Generate nutrition analysis from verified foods
- * Replace with real backend call later
- */
-export async function generateAnalysis(
-  verifiedFoods: VerifiedFood[],
-  userId: string
-): Promise<AnalysisResult> {
-  // Simulate API delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  const now = new Date().toISOString();
-  const baseCalories = verifiedFoods.reduce(
-    (acc, f) => acc + f.quantity * 150,
-    0
-  );
-
-  return {
-    analysisId: crypto.randomUUID(),
-    foodLogId: crypto.randomUUID(),
-    userId,
-    nutritionFacts: {
-      calories: baseCalories,
-      protein: Math.round(baseCalories * 0.08),
-      carbs: Math.round(baseCalories * 0.12),
-      fat: Math.round(baseCalories * 0.04),
-      sugar: Math.round(baseCalories * 0.02),
-      fiber: 8,
-      sodium: 500,
-      cholesterol: 50,
-    },
-    micronutrients: {
-      vitamin_c: "10%",
-      iron: "5%",
-      calcium: "15%",
-      vitamin_a: "20%",
-      vitamin_d: "8%",
-    },
-    healthTags: ["Balanced", "Home Cooked"],
-    analysisNotes: `Analisis untuk ${verifiedFoods.length} item makanan.`,
-    meetsGoals: baseCalories < 800,
-    warnings:
-      baseCalories > 600 ? ["Kalori cukup tinggi untuk satu kali makan"] : [],
-    createdAt: now,
-    updatedAt: now,
-  };
 }
 
 /**

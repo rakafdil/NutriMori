@@ -1,10 +1,10 @@
 "use client";
 import React from "react";
 import { AlertTriangle, CheckCircle, Flame, Zap } from "lucide-react";
-import { AnalysisResult } from "@/services/food-matcher.service";
+import { NutritionAnalysisResponse } from "@/types/nutritionAnalyzer";
 
 interface AnalysisResultCardProps {
-  analysis: AnalysisResult;
+  analysis: NutritionAnalysisResponse;
   onClose: () => void;
 }
 
@@ -16,8 +16,7 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
     nutritionFacts,
     micronutrients,
     healthTags,
-    warnings,
-    meetsGoals,
+    warnings = [],
     analysisNotes,
   } = analysis;
 
@@ -46,19 +45,19 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
         </div>
         <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl text-center">
           <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
-            {nutritionFacts.protein}g
+            {nutritionFacts.protein}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">Protein</p>
         </div>
         <div className="bg-orange-50 dark:bg-orange-900/30 p-3 rounded-xl text-center">
           <p className="text-xl font-bold text-orange-700 dark:text-orange-300">
-            {nutritionFacts.carbs}g
+            {nutritionFacts.carbs}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">Karbo</p>
         </div>
         <div className="bg-purple-50 dark:bg-purple-900/30 p-3 rounded-xl text-center">
           <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
-            {nutritionFacts.fat}g
+            {nutritionFacts.fat}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">Lemak</p>
         </div>
@@ -68,25 +67,25 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
       <div className="grid grid-cols-4 gap-2 text-xs text-center mb-4">
         <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
           <p className="font-semibold dark:text-white">
-            {nutritionFacts.fiber}g
+            {nutritionFacts.fiber}
           </p>
           <p className="text-gray-400">Serat</p>
         </div>
         <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
           <p className="font-semibold dark:text-white">
-            {nutritionFacts.sugar}g
+            {nutritionFacts.sugar}
           </p>
           <p className="text-gray-400">Gula</p>
         </div>
         <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
           <p className="font-semibold dark:text-white">
-            {nutritionFacts.sodium}mg
+            {nutritionFacts.sodium}
           </p>
           <p className="text-gray-400">Sodium</p>
         </div>
         <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
           <p className="font-semibold dark:text-white">
-            {nutritionFacts.cholesterol}mg
+            {nutritionFacts.cholesterol}
           </p>
           <p className="text-gray-400">Kolesterol</p>
         </div>
@@ -121,24 +120,8 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
         ))}
       </div>
 
-      {/* Goals status */}
-      <div
-        className={`flex items-center gap-2 p-3 rounded-xl mb-4 ${
-          meetsGoals
-            ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-            : "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300"
-        }`}
-      >
-        <CheckCircle className="w-4 h-4" />
-        <span className="text-sm font-medium">
-          {meetsGoals
-            ? "Sesuai dengan target harianmu!"
-            : "Sedikit melebihi target"}
-        </span>
-      </div>
-
       {/* Warnings */}
-      {warnings.length > 0 && (
+      {warnings && warnings.length > 0 && (
         <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-xl">
           {warnings.map((w, i) => (
             <div

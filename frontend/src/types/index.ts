@@ -1,3 +1,5 @@
+import { NutritionFacts } from "./nutritionAnalyzer";
+
 export interface UserProfile {
   name?: string;
   id?: string;
@@ -31,23 +33,11 @@ export type MatchResult = {
     similarity: number;
   }[];
 };
-
-export interface NutritionInfo {
-  items: FoodItem[];
-  calories?: number;
-  protein?: number;
-  carbs?: number;
-  fats?: number;
-  sodium?: string;
-  healthScore?: string;
-  summary?: string;
-}
-
 export interface Meal {
   id: string;
   name: string;
   timestamp: Date;
-  nutrition: NutritionInfo;
+  nutrition: NutritionFacts;
   mealType?: "breakfast" | "lunch" | "dinner" | "snack";
 }
 
