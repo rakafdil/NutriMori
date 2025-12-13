@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Navbar from "./Navbar";
 import HeroSection from "./HeroSection";
 import FeaturesSection from "./FeaturesSection";
@@ -13,11 +13,48 @@ const HeroContent: React.FC = () => {
     home: <HeroSection />,
     features: <FeaturesSection />,
     manifesto: <ManifestoSection />,
-    pricing: <PricingSection />,
+    // pricing: <PricingSection />,
   };
 
   const handleNavigate = (section: string) => {
     setCurrentSection(section);
+  };
+
+  const SectionWrapper: React.FC<{ id: string; children: React.ReactNode }> = ({
+    id,
+    children,
+  }) => {
+    const ref = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+      const el = ref.current;
+      if (!el) return;
+
+      // initial state
+      el.style.opacity = "0";
+      el.style.transform = "translateX(20px)";
+
+      // trigger transition on next frame
+      requestAnimationFrame(() => {
+        el.style.transition = "opacity 400ms ease, transform 400ms ease";
+        el.style.opacity = "1";
+        el.style.transform = "translateX(0)";
+      });
+
+      // optional cleanup: smooth exit (not required)
+      return () => {
+        if (!el) return;
+        el.style.transition = "opacity 200ms ease, transform 200ms ease";
+        el.style.opacity = "0";
+        el.style.transform = "translateX(-10px)";
+      };
+    }, [id]);
+
+    return (
+      <div ref={ref} aria-hidden={false}>
+        {children}
+      </div>
+    );
   };
 
   return (
@@ -27,15 +64,9 @@ const HeroContent: React.FC = () => {
       </div>
 
       <div className="pt-20">
-        <div
-          className="transition-all duration-500 ease-in-out"
-          style={{
-            opacity: 1,
-            transform: "translateX(0)",
-          }}
-        >
+        <SectionWrapper id={currentSection}>
           {sections[currentSection as keyof typeof sections] || <HeroSection />}
-        </div>
+        </SectionWrapper>
       </div>
     </div>
   );
