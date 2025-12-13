@@ -8,7 +8,7 @@ import shutil
 
 # Path setup
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DATA_PATH = BASE_DIR / "ai" / "data" / "data_pangan_bersih.parquet"
+DATA_PATH = BASE_DIR / "ai" / "data" / "data pangan bersih.parquet"
 EMB_PATH = BASE_DIR / "ai" / "data" / "build_embeddings.npy"
 INDEX_PATH = BASE_DIR / "ai" / "data" / "build_index.faiss"
 

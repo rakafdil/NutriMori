@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent # Folder Root 'NutriMor
 INPUT_FILENAME = "dataset_gabungan.csv" 
 
 RAW_PATH = BASE_DIR / "ai" / "data raw" / INPUT_FILENAME
-OUT_PATH = BASE_DIR / "ai" / "data" / "data_pangan_bersih.parquet"
+OUT_PATH = BASE_DIR / "ai" / "data" / "data pangan bersih.parquet"
 
 def normalize_name(name: str) -> str:
     """Membersihkan nama makanan untuk pencarian AI (lowercase, no simbol aneh)."""
