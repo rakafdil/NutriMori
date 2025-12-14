@@ -37,20 +37,25 @@ const fetchWithRetry = async (
   options: RequestInit,
   retries = 2
 ): Promise<Response> => {
+  let lastError: Error | null = null;
+
   for (let i = 0; i <= retries; i++) {
     try {
       const response = await fetch(url, options);
+      // Return immediately for successful responses or last retry
       if (response.ok || i === retries) {
         return response;
       }
-      // Wait before retry (exponential backoff)
+      // For non-ok responses that aren't the last retry, wait and continue
+      lastError = new Error(`HTTP ${response.status}`);
       await new Promise((r) => setTimeout(r, 100 * Math.pow(2, i)));
     } catch (error) {
+      lastError = error as Error;
       if (i === retries) throw error;
       await new Promise((r) => setTimeout(r, 100 * Math.pow(2, i)));
     }
   }
-  throw new Error("Request failed after retries");
+  throw lastError || new Error("Request failed after retries");
 };
 
 // --- Service Implementation ---
@@ -135,7 +140,10 @@ export const FoodLogsService = {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.message || "Failed to fetch food logs");
     }
-    return await response.json();
+
+    const data = await response.json();
+    // Ensure we always return an array
+    return Array.isArray(data) ? data : [];
   },
 
   /**

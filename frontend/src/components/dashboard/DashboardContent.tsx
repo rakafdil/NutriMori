@@ -245,16 +245,9 @@ const DashboardContent: React.FC = () => {
   const handleDelete = async (mealId: string) => {
     const result = await deleteLog(mealId);
     if (result.success) {
-      // Remove from local state immediately for better UX
-      setMeals((prev) => prev.filter((m) => m.id !== mealId));
-      setMealAnalyses((prev) => {
-        const newMap = new Map(prev);
-        newMap.delete(mealId);
-        return newMap;
-      });
-      // Then refetch to ensure sync
-      refetchLogs();
-      refetchStreaks();
+      // Refetch to ensure sync with backend - don't do optimistic updates
+      // that might conflict with ongoing fetches
+      await Promise.all([refetchLogs(), refetchStreaks()]);
     } else {
       console.error("Failed to delete meal:", result.error);
     }
@@ -301,54 +294,23 @@ const DashboardContent: React.FC = () => {
       }
 
       // Step 3: Small delay to ensure DB consistency
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Step 4: Run analysis
       const analysis = await createAnalysis(logId);
       setAnalysisResult(analysis);
 
-      // Step 5: Create optimistic meal entry
-      const newMeal: Meal = {
-        id: analysis?.foodLogId ?? String(logId),
-        name: lastRawInput,
-        timestamp: new Date(),
-        nutrition: {
-          items: verifiedFoods.map((f) => ({
-            name: f.selectedName,
-            quantity: f.quantity,
-            unit: f.unit,
-          })),
-          calories: analysis?.nutritionFacts.calories || 0,
-          protein: analysis?.nutritionFacts.protein || "0g",
-          carbs: analysis?.nutritionFacts.carbs || "0g",
-          fat: analysis?.nutritionFacts.fat || "0g",
-          sugar: analysis?.nutritionFacts.sugar || "0g",
-          fiber: analysis?.nutritionFacts.fiber || "0g",
-          sodium: analysis?.nutritionFacts.sodium || "0mg",
-          cholesterol: analysis?.nutritionFacts.cholesterol || "0mg",
-        },
-      };
-
-      // Add to local state immediately
-      setMeals((prev) => [newMeal, ...prev]);
-      if (analysis) {
-        setMealAnalyses((prev) => {
-          const newMap = new Map(prev);
-          newMap.set(newMeal.id, analysis);
-          return newMap;
-        });
-      }
+      // Step 5: Refetch data from server instead of optimistic update
+      // This prevents race condition and ensures data consistency
+      await Promise.all([refetchLogs(), refetchStreaks()]);
 
       setCurrentStep("result");
-
-      // Step 6: Refetch to ensure sync with backend
-      setTimeout(() => {
-        refetchLogs();
-        refetchStreaks();
-      }, 500);
     } catch (err) {
       console.error("Failed to log food:", err);
       alert("Failed to save meal. Please try again.");
+      // Refetch to ensure UI is in sync with server state
+      refetchLogs();
+      refetchStreaks();
     } finally {
       setIsProcessing(false);
     }
