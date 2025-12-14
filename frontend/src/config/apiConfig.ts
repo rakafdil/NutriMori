@@ -69,17 +69,19 @@ export const API_CONFIG = {
       PATCH_BY_ID: "/nutrition-rules/:id",
       DELETE_BY_ID: "/nutrition-rules/:id",
     },
-
-    HABIT_INSIGHTS: {
-      LIST: "/habit-insights",
-    },
-
     USER_PREFERENCES: {
       BY_USER: "/user-preferences/",
       GET_BY_USER: "/user-preferences/",
       PUT_BY_USER: "/user-preferences/",
       PATCH_BY_USER: "/user-preferences/",
       DELETE_BY_USER: "/user-preferences/",
+    },
+    HABIT_INSIGHTS: {
+      LIST: "/habit-insights",
+      REFRESH: "/habit-insights/refresh", // Endpoint baru
+      CACHE: "/habit-insights/cache", // Endpoint baru
+      PATTERNS: "/habit-insights/patterns", // Endpoint baru
+      HISTORY: "/habit-insights/health-score/history", // Endpoint baru
     },
   },
   TIMEOUT: 30000,

@@ -1,28 +1,14 @@
 import {
-  HabitInsightsParams,
   HabitInsightsResponse,
+  PatternSummaryData,
+  HealthScoreHistoryData,
+  HabitInsightsPeriod,
+  HabitInsightsQueryParams,
 } from "@/types/habitInsights";
 import { API_CONFIG, AUTH_STORAGE_KEY, getApiUrl } from "@/config/apiConfig";
 
 class HabitInsightsService {
-  // Build URL for habit insights; prefer configured endpoint, fallback to BASE_URL
-  private buildUrl(params?: HabitInsightsParams) {
-    const base =
-      API_CONFIG && (API_CONFIG as any).ENDPOINTS?.HABIT_INSIGHTS
-        ? getApiUrl((API_CONFIG as any).ENDPOINTS.HABIT_INSIGHTS)
-        : `${API_CONFIG.BASE_URL}/habit-insights`;
-
-    if (!params) return base;
-
-    const queryParams = new URLSearchParams();
-    queryParams.append("period", params.period);
-    if (params.startDate) queryParams.append("startDate", params.startDate);
-    if (params.endDate) queryParams.append("endDate", params.endDate);
-
-    return `${base}?${queryParams.toString()}`;
-  }
-
-  // read auth token from storage (non-httpOnly fallback)
+  // Helper: Read auth token
   private getAuthToken(): string | null {
     try {
       return localStorage.getItem(AUTH_STORAGE_KEY);
@@ -31,15 +17,13 @@ class HabitInsightsService {
     }
   }
 
-  // do authenticated fetch — if token exists, send Authorization header,
-  // otherwise rely on browser cookies by setting credentials: 'include'
+  // Helper: Authenticated fetch wrapper
   private async authenticatedFetch(
     url: string,
     options: RequestInit = {}
   ): Promise<Response> {
     const token = this.getAuthToken();
 
-    // build headers, preserving any provided headers
     const headers = {
       "Content-Type": "application/json",
       ...((options && options.headers) || {}),
@@ -58,9 +42,24 @@ class HabitInsightsService {
     return fetch(url, fetchOptions);
   }
 
-  // public method to get habit insights
+  // Helper: Handle response errors
+  private async handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+      let text = response.statusText;
+      try {
+        const errJson = await response.json();
+        text = JSON.stringify(errJson) || text;
+      } catch {
+        // ignore JSON parse error
+      }
+      throw new Error(text);
+    }
+    return response.json();
+  }
+
+  // 1. GET Habit Insights (Main Analysis)
   async getHabitInsights(
-    params: HabitInsightsParams
+    params: HabitInsightsQueryParams
   ): Promise<HabitInsightsResponse> {
     const base = getApiUrl(API_CONFIG.ENDPOINTS.HABIT_INSIGHTS.LIST);
 
@@ -75,19 +74,82 @@ class HabitInsightsService {
       method: "GET",
     });
 
-    if (!response.ok) {
-      let text = response.statusText;
-      try {
-        const errJson = await response.json();
-        // console.log(errJson);
-        text = JSON.stringify(errJson) || text;
-      } catch {
-        // ignore
-      }
-      throw new Error(text);
+    return this.handleResponse<HabitInsightsResponse>(response);
+  }
+
+  // 2. POST Refresh Insight (Force Regenerate)
+  async refreshHabitInsights(
+    period: HabitInsightsPeriod
+  ): Promise<HabitInsightsResponse> {
+    const url = getApiUrl(API_CONFIG.ENDPOINTS.HABIT_INSIGHTS.REFRESH);
+
+    const body = {
+      period,
+      forceRefresh: true,
+    };
+
+    const response = await this.authenticatedFetch(url, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    return this.handleResponse<HabitInsightsResponse>(response);
+  }
+
+  // 3. DELETE Invalidate Cache
+  async invalidateCache(period?: HabitInsightsPeriod): Promise<void> {
+    const base = getApiUrl(API_CONFIG.ENDPOINTS.HABIT_INSIGHTS.CACHE);
+
+    let url = base;
+    if (period) {
+      const queryParams = new URLSearchParams();
+      queryParams.append("period", period);
+      url = `${base}?${queryParams.toString()}`;
     }
 
-    return response.json();
+    const response = await this.authenticatedFetch(url, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to clear cache");
+    }
+  }
+
+  // 4. GET Pattern Summary (Lightweight)
+  async getPatternSummary(
+    period: HabitInsightsPeriod
+  ): Promise<PatternSummaryData> {
+    const base = getApiUrl(API_CONFIG.ENDPOINTS.HABIT_INSIGHTS.PATTERNS);
+
+    const queryParams = new URLSearchParams();
+    queryParams.append("period", period);
+
+    const url = `${base}?${queryParams.toString()}`;
+
+    const response = await this.authenticatedFetch(url, {
+      method: "GET",
+    });
+
+    return this.handleResponse<PatternSummaryData>(response);
+  }
+
+  // 5. GET Health Score History
+  async getHealthScoreHistory(
+    months: number = 6
+  ): Promise<HealthScoreHistoryData> {
+    const base = getApiUrl(API_CONFIG.ENDPOINTS.HABIT_INSIGHTS.HISTORY);
+
+    const queryParams = new URLSearchParams();
+    queryParams.append("months", months.toString());
+
+    const url = `${base}?${queryParams.toString()}`;
+
+    const response = await this.authenticatedFetch(url, {
+      method: "GET",
+    });
+
+    return this.handleResponse<HealthScoreHistoryData>(response);
   }
 }
 
