@@ -140,7 +140,8 @@ export class HabitInsightsService {
 
         this.logger.debug(`Fetching nutrition data for user ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
-        // First, try to get data from nutrition_analysis table
+        // Get data from nutrition_analysis table
+        // Filter by nutrition_analysis.created_at (more reliable than nested filter)
         const { data, error } = await supabase
             .from('nutrition_analysis')
             .select(`
@@ -160,7 +161,7 @@ export class HabitInsightsService {
                 warnings,
                 created_at,
                 updated_at,
-                food_logs!inner(
+                food_logs(
                     log_id,
                     user_id,
                     meal_type,
@@ -290,7 +291,7 @@ export class HabitInsightsService {
         // Detect patterns using rule engine
         const patterns = PatternDetector.detectPatterns(data, targets);
 
-        // Calculate health score
+        // Calculate health score locally
         const healthScore = HealthScoreCalculator.calculate(
             data,
             patterns as any,
@@ -302,12 +303,26 @@ export class HabitInsightsService {
             }
         );
 
-        // Generate AI insights
-        const aiResult = await this.generateAiSummary(data, patterns, targets, period);
+        // Calculate metrics
+        const totalMeals = data.reduce((sum, d) => sum + d.mealCount, 0);
+        const avgCalories = data.length > 0
+            ? Math.round(data.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / data.length)
+            : 0;
+
+        // Generate AI summary and recommendations only (healthScore already calculated)
+        const aiResult = await this.generateAiSummary(
+            data, 
+            patterns, 
+            targets, 
+            period,
+            healthScore,
+            totalMeals,
+            avgCalories
+        );
 
         return {
             patterns,
-            healthScore: aiResult.healthScore ?? healthScore,
+            healthScore, // Use locally calculated score
             summary: aiResult.summary,
             recommendations: aiResult.recommendations,
         };
@@ -319,29 +334,22 @@ export class HabitInsightsService {
         data: AggregatedDayData[],
         patterns: HabitPatternDto[],
         targets: UserTargets,
-        period: PeriodType
-    ): Promise<{ summary: string; recommendations: string[]; healthScore?: number }> {
-        const avgCalories = data.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / Math.max(1, data.length);
-
-        // Collect all health tags and warnings from aggregated data
-        const allHealthTags = new Set<string>();
-        const allWarnings = new Set<string>();
-        for (const day of data) {
-            for (const tag of day.healthTags || []) allHealthTags.add(tag);
-            for (const warning of day.warnings || []) allWarnings.add(warning);
-        }
-
-        // Generate insights using Gemini with health insights from nutrition_analysis
+        period: PeriodType,
+        healthScore: number,
+        totalMeals: number,
+        avgCalories: number
+    ): Promise<{ summary: string; recommendations: string[] }> {
+        // Generate insights using Gemini - only needs summary and recommendations
         return await this.geminiClient.generateInsights(
             data,
             patterns,
             {
                 period: period.toUpperCase(),
                 daysCount: data.length,
-                avgCalories: Math.round(avgCalories),
+                avgCalories,
                 targetCalories: targets.calories,
-                healthTags: Array.from(allHealthTags),
-                warnings: Array.from(allWarnings),
+                healthScore,
+                totalMeals,
             }
         );
     }

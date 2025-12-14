@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsNumber, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsArray, IsNumber, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
 
 /**
  * Internal DTO for nutrition calculations (uses numbers)
@@ -158,16 +158,6 @@ export class NutritionAnalysisResponseDto {
   @IsArray()
   @IsString({ each: true })
   healthTags: string[];
-
-  @ApiPropertyOptional({ description: 'Analysis notes or recommendations' })
-  @IsString()
-  @IsOptional()
-  analysisNotes?: string;
-
-  @ApiPropertyOptional({ description: 'Whether the meal meets user goals', example: true })
-  @IsBoolean()
-  @IsOptional()
-  meetsGoals?: boolean;
 
   @ApiPropertyOptional({ description: 'Warning messages', example: ['Exceeds daily sodium limit'] })
   @IsArray()

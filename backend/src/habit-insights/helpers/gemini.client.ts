@@ -6,8 +6,8 @@ import { AggregatedDayData, AiInsightResult } from '../types';
 /**
  * Gemini AI Client
  * 
- * Handles communication with Gemini API using ultra-compact format
- * for maximum token efficiency (~70% reduction).
+ * Handles communication with Gemini API using minimal token format.
+ * Only requests summary and recommendations - all calculations done locally.
  */
 
 // ============ CONTEXT INTERFACE ============
@@ -17,60 +17,48 @@ interface InsightContext {
     daysCount: number;
     avgCalories: number;
     targetCalories: number;
-    healthTags?: string[];
-    warnings?: string[];
+    healthScore: number;
+    totalMeals: number;
 }
 
-// ============ COMPACT STATS BUILDER ============
+// ============ MINIMAL PROMPT BUILDER ============
 
 /**
- * Instead of sending all daily data, we send aggregated stats only
- * This reduces tokens by ~60-80% for longer periods
+ * Build ultra-minimal prompt - only send key metrics
+ * Gemini just needs to write summary + recommendations
+ * ~20-30 tokens input
  */
-const buildCompactStats = (data: AggregatedDayData[]): string => {
-    if (data.length === 0) return 'N/A';
-    
-    const avg = (arr: number[]) => Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
-    
-    const cal = avg(data.map(d => d.totalCalories ?? 0));
-    const pro = avg(data.map(d => d.totalProtein ?? 0));
-    const sug = avg(data.map(d => d.totalSugar ?? 0));
-    const fib = avg(data.map(d => d.totalFiber ?? 0));
-    const meals = avg(data.map(d => d.mealCount ?? 0));
-    
-    // Only include non-zero values
-    const parts: string[] = [`c${cal}`, `p${pro}`, `s${sug}`, `f${fib}`, `m${meals}`];
-    return parts.join(',');
-};
-
-// ============ PROMPT TEMPLATE (ULTRA COMPACT) ============
-
-const buildPrompt = (
+const buildMinimalPrompt = (
     context: InsightContext,
-    stats: string,
-    patterns: string,
+    patternSummary: string,
 ): string => {
-    // Ultra-compact prompt - minimal tokens
-    const tags = context.healthTags?.slice(0, 3).join(',') || '';
-    const warns = context.warnings?.slice(0, 2).join(',') || '';
+    const calStatus = context.avgCalories > context.targetCalories ? 'lebih' : 
+                      context.avgCalories < context.targetCalories - 200 ? 'kurang' : 'sesuai';
     
-    return `Gizi.${context.period}(${context.daysCount}d).
-AVG:${stats}.T${context.targetCalories}kal.
-${tags ? `+${tags}.` : ''}${warns ? `-${warns}.` : ''}
-P:${patterns}
-JSON:{"s":"2kalimat ID","r":["3saran"],"h":0-100}`;
+    // Super minimal prompt format
+    return `${context.period}:${context.daysCount}hr,${context.totalMeals}mkn,${context.avgCalories}kal(${calStatus}),skor${context.healthScore}.${patternSummary}
+Balas JSON:{"s":"ringkasan 1-2 kalimat bahasa Indonesia","r":["3 saran singkat"]}`;
 };
 
 // ============ FALLBACK RECOMMENDATIONS ============
 
 const FALLBACK_RECOMMENDATIONS: Record<string, string> = {
     sarapan: 'Usahakan sarapan sebelum jam 9 pagi dengan menu berprotein.',
-    gula: 'Kurangi minuman manis dan dessert, terutama di akhir pekan.',
+    gula: 'Kurangi minuman manis dan dessert, ganti dengan buah segar.',
     garam: 'Kurangi makanan olahan dan tambahkan bumbu alami.',
     sodium: 'Kurangi makanan olahan dan tambahkan bumbu alami.',
     protein: 'Tambahkan sumber protein seperti telur, ikan, atau tahu.',
     serat: 'Konsumsi lebih banyak sayur dan buah setiap hari.',
+    kalori: 'Perhatikan porsi makan dan hindari makan berlebihan.',
+    lemak: 'Batasi gorengan dan pilih metode memasak yang lebih sehat.',
+    malam: 'Hindari makan berat setelah jam 8 malam.',
     default: 'Pertahankan pola makan seimbang dengan sayur dan buah setiap hari.',
+};
+
+const FALLBACK_SUMMARIES = {
+    good: 'Pola makan Anda sudah cukup baik. Pertahankan kebiasaan positif ini.',
+    needsWork: 'Ada beberapa kebiasaan makan yang perlu diperbaiki untuk kesehatan yang lebih baik.',
+    limited: 'Data masih terbatas, terus catat makanan Anda untuk analisis lebih akurat.',
 };
 
 // ============ GEMINI CLIENT CLASS ============
@@ -95,6 +83,7 @@ export class GeminiClient {
     /**
      * Generate AI insights from habit data
      * Uses ultra-compact format to minimize token usage
+     * Includes retry logic for rate limit errors (429)
      */
     async generateInsights(
         data: AggregatedDayData[],
@@ -103,89 +92,89 @@ export class GeminiClient {
     ): Promise<AiInsightResult> {
         if (!this.isConfigured()) {
             this.logger.warn('Gemini API key not configured, using fallback');
-            return this.generateFallback(patterns);
+            return this.generateFallback(patterns, data, context);
         }
 
-        // Build ultra-compact stats (instead of full data)
-        const stats = buildCompactStats(data);
-        
-        // Compact patterns (max 5, most impactful first)
-        const topPatterns = this.getTopPatterns(patterns, 5);
-        const compactPatterns = this.serializePatterns(topPatterns);
+        // Build minimal pattern summary (just count positive/negative)
+        const negCount = patterns.filter(p => p.type === 'negative').length;
+        const posCount = patterns.filter(p => p.type === 'positive').length;
+        const patternSummary = negCount > 0 || posCount > 0 
+            ? `+${posCount}/-${negCount}pola` 
+            : '';
 
-        const prompt = buildPrompt(context, stats, compactPatterns);
+        const prompt = buildMinimalPrompt(context, patternSummary);
         
         // Log token estimate for debugging
         const estimatedTokens = Math.ceil(prompt.length / 4);
         this.logger.debug(`Prompt tokens (est): ${estimatedTokens}`);
 
-        try {
-            const response = await fetch(`${this.endpoint}?key=${this.apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        temperature: GEMINI_CONFIG.temperature,
-                        maxOutputTokens: GEMINI_CONFIG.maxOutputTokens,
-                    },
-                }),
-            });
+        // Retry logic for rate limiting
+        const maxRetries = 2;
+        let lastError: Error | null = null;
 
-            if (!response.ok) {
-                this.logger.error(`Gemini API error: ${response.status}`);
-                return this.generateFallback(patterns);
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await fetch(`${this.endpoint}?key=${this.apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            temperature: GEMINI_CONFIG.temperature,
+                            maxOutputTokens: GEMINI_CONFIG.maxOutputTokens,
+                        },
+                    }),
+                });
+
+                if (response.status === 429) {
+                    // Rate limited - wait and retry
+                    if (attempt < maxRetries) {
+                        const waitTime = Math.pow(2, attempt + 1) * 1000; // 2s, 4s
+                        this.logger.warn(`Rate limited (429), retrying in ${waitTime}ms...`);
+                        await this.sleep(waitTime);
+                        continue;
+                    }
+                    this.logger.warn('Rate limit exceeded, using fallback response');
+                    return this.generateFallback(patterns, data, context);
+                }
+
+                if (!response.ok) {
+                    this.logger.error(`Gemini API error: ${response.status}`);
+                    return this.generateFallback(patterns, data, context);
+                }
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+                const parsed = this.parseAiResponse(text);
+                if (parsed) {
+                    return parsed;
+                }
+
+                return this.generateFallback(patterns, data, context);
+            } catch (error) {
+                lastError = error as Error;
+                if (attempt < maxRetries) {
+                    this.logger.warn(`API call failed, retrying... (${attempt + 1}/${maxRetries})`);
+                    await this.sleep(1000);
+                }
             }
-
-            const result = await response.json();
-            const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-            const parsed = this.parseAiResponse(text);
-            if (parsed) {
-                return parsed;
-            }
-
-            return this.generateFallback(patterns);
-        } catch (error) {
-            this.logger.error(`Gemini API call failed: ${error}`);
-            return this.generateFallback(patterns);
         }
+
+        this.logger.error(`Gemini API call failed after retries: ${lastError}`);
+        return this.generateFallback(patterns, data, context);
     }
 
     /**
-     * Get top N patterns, prioritizing high impact and negative patterns
+     * Sleep utility for retry delays
      */
-    private getTopPatterns(patterns: HabitPatternDto[], limit: number): HabitPatternDto[] {
-        const impactScore = (p: HabitPatternDto): number => {
-            let score = 0;
-            if (p.impact === 'High') score += 10;
-            else if (p.impact === 'Medium') score += 5;
-            if (p.type === 'negative') score += 3; // Prioritize negative for recommendations
-            return score;
-        };
-        
-        return [...patterns]
-            .sort((a, b) => impactScore(b) - impactScore(a))
-            .slice(0, limit);
+    private sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**
-     * Ultra-compact pattern serialization
-     */
-    private serializePatterns(patterns: HabitPatternDto[]): string {
-        if (patterns.length === 0) return '-';
-        
-        // Super compact: just type symbol and shortened message
-        return patterns.map(p => {
-            const type = p.type === 'positive' ? '+' : p.type === 'negative' ? '-' : '~';
-            // Shorten message to max 20 chars
-            const msg = p.message.length > 20 ? p.message.slice(0, 20) : p.message;
-            return `${type}${msg}`;
-        }).join('|');
-    }
-
-    /**
-     * Parse AI response
+     * Parse AI response - only extract summary and recommendations
+     * healthScore is calculated locally, not from AI
      */
     private parseAiResponse(text: string): AiInsightResult | null {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -196,7 +185,6 @@ export class GeminiClient {
             return {
                 summary: parsed.s || parsed.summary || '',
                 recommendations: parsed.r || parsed.recommendations || [],
-                healthScore: parsed.h || parsed.healthScore || undefined,
             };
         } catch {
             return null;
@@ -205,22 +193,41 @@ export class GeminiClient {
 
     /**
      * Generate fallback insights without AI
+     * Uses pattern analysis and basic statistics
      */
-    generateFallback(patterns: HabitPatternDto[]): AiInsightResult {
+    generateFallback(
+        patterns: HabitPatternDto[],
+        data?: AggregatedDayData[],
+        context?: { period: string; daysCount: number; avgCalories: number; targetCalories: number },
+    ): AiInsightResult {
         const negativePatterns = patterns.filter(p => p.type === 'negative');
         const positivePatterns = patterns.filter(p => p.type === 'positive');
 
-        // Build summary
+        // Build summary based on patterns and data
         let summary = '';
-        if (negativePatterns.length > positivePatterns.length) {
-            summary = `Ditemukan ${negativePatterns.length} pola yang perlu diperbaiki. `;
+        
+        if (data && data.length < 3) {
+            summary = FALLBACK_SUMMARIES.limited;
+        } else if (negativePatterns.length > positivePatterns.length) {
+            summary = FALLBACK_SUMMARIES.needsWork;
+            if (context) {
+                const calDiff = context.avgCalories - context.targetCalories;
+                if (calDiff > 200) {
+                    summary += ` Rata-rata kalori ${Math.round(context.avgCalories)} kkal melebihi target.`;
+                } else if (calDiff < -300) {
+                    summary += ` Asupan kalori ${Math.round(context.avgCalories)} kkal masih di bawah target.`;
+                }
+            }
         } else if (positivePatterns.length > 0) {
-            summary = `Kebiasaan makan cukup baik dengan ${positivePatterns.length} pola positif. `;
+            summary = FALLBACK_SUMMARIES.good;
+            if (context && positivePatterns.length >= 3) {
+                summary = `Pola makan ${context.period} ini sangat baik dengan ${positivePatterns.length} kebiasaan positif terdeteksi.`;
+            }
         } else {
-            summary = 'Data masih terbatas untuk analisis mendalam.';
+            summary = FALLBACK_SUMMARIES.limited;
         }
 
-        // Build recommendations
+        // Build recommendations based on negative patterns
         const recommendations: string[] = [];
         const addedKeywords = new Set<string>();
 
@@ -236,12 +243,12 @@ export class GeminiClient {
             }
         }
 
-        // Fill with default if needed
-        while (recommendations.length < 3) {
+        // Add default recommendations if needed
+        if (recommendations.length === 0) {
             recommendations.push(FALLBACK_RECOMMENDATIONS.default);
-            break; // Only add once
         }
 
+        // healthScore is calculated in service, not here
         return { summary, recommendations };
     }
 }
