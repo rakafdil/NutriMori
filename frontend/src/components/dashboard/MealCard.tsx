@@ -87,7 +87,7 @@ const MealCard: React.FC<MealCardProps> = ({ meal, onEdit, onDelete }) => {
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
                 <p className="font-semibold text-gray-700 dark:text-gray-300">
-                  {nutrition.fats}g
+                  {nutrition.fat}g
                 </p>
                 <p className="text-gray-400">Lemak</p>
               </div>
