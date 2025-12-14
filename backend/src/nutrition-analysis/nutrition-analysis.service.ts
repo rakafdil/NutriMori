@@ -153,7 +153,7 @@ export class NutritionAnalysisService {
 
         const akgData = await this.getAkgData(userProfile?.age, userProfile?.gender);
 
-        const { healthTags, warnings, meetsGoals } = this.analyzeHealthMetrics(
+        const { healthTags, warnings } = this.analyzeHealthMetrics(
             totalNutrition,
             preferences,
             rules,
@@ -180,7 +180,6 @@ export class NutritionAnalysisService {
             micronutrients,
             health_tags: healthTags,
             warnings,
-            meets_goals: meetsGoals,
         };
 
         const { data, error } = await supabase
@@ -570,10 +569,9 @@ data?.forEach((i: any) => {
         prefs: UserPreferences | null,
         rules: NutritionRule[],
         akg: AkgData | null,
-    ): { healthTags: string[]; warnings: string[]; meetsGoals: boolean } {
+    ): { healthTags: string[]; warnings: string[] } {
         const tags: string[] = [];
         const warnings: string[] = [];
-        let meetsGoals = true;
 
         const goals = prefs?.goals?.map(g => g.toLowerCase()) ?? [];
         const history = prefs?.medical_history?.map(m => m.toLowerCase()) ?? [];
@@ -653,17 +651,11 @@ data?.forEach((i: any) => {
 
             if (r.output_type === 'tag') tags.push(msg);
             if (r.output_type === 'warning') warnings.push(msg);
-
-            // penalty
-            if (['warning', 'critical'].includes(r.severity)) {
-                meetsGoals = false;
-            }
         }
 
         return { 
             healthTags: [...new Set(tags)], 
-            warnings: [...new Set(warnings)], 
-            meetsGoals 
+            warnings: [...new Set(warnings)],
         };
     }
 
