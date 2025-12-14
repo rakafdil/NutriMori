@@ -173,7 +173,7 @@ export class NutritionAnalysisService {
             total_carbs: totalNutrition.carbs,
             total_fat: totalNutrition.fat,
             total_sugar: totalNutrition.sugar,
-            sugar_estimated: sugarEstimated,
+            sugar_estimated: sugarEstimated ? 1 : 0,
             total_fiber: totalNutrition.fiber,
             total_sodium: totalNutrition.sodium,
             total_cholesterol: totalNutrition.cholesterol,
