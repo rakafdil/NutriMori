@@ -169,9 +169,43 @@ export const useFoodLogActions = () => {
   };
 
   const logFoodText = async (input: LogFoodInputDto) => {
+    // Determine mealType based on current time and routine
+    const now = new Date();
+    const currentTime = `${now.getHours().toString().padStart(2, "0")}:${now
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+
+    let mealType: "breakfast" | "lunch" | "dinner" | "snack" = "snack";
+    try {
+      const preferences = JSON.parse(
+        localStorage.getItem("nutrimori_preferences") || "{}"
+      );
+      const routine = preferences.routine;
+      if (routine) {
+        if (currentTime < routine.breakfast) {
+          mealType = "breakfast";
+        } else if (currentTime < routine.lunch) {
+          mealType = "breakfast";
+        } else if (currentTime < routine.dinner) {
+          mealType = "lunch";
+        } else {
+          mealType = "dinner";
+        }
+      }
+    } catch (error) {
+      console.warn(
+        "Failed to parse routine from localStorage, defaulting to snack:",
+        error
+      );
+    }
+
+    // Add mealType to input
+    const updatedInput = { ...input, mealType };
+
     startAction();
     try {
-      const result = await FoodLogsService.logFood(input);
+      const result = await FoodLogsService.logFood(updatedInput);
       setIsSubmitting(false);
       return { success: true, data: result };
     } catch (err: any) {
