@@ -148,7 +148,33 @@ FOR INSERT
 WITH CHECK (auth.uid() = id);
 
 -- ============================================
--- 6. READ-ONLY TABLES (Public Access)
+-- 6. NUTRITION_LIMITS TABLE
+-- ============================================
+ALTER TABLE public.nutrition_limits ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own nutrition limits"
+ON public.nutrition_limits
+FOR SELECT
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own nutrition limits"
+ON public.nutrition_limits
+FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own nutrition limits"
+ON public.nutrition_limits
+FOR UPDATE
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own nutrition limits"
+ON public.nutrition_limits
+FOR DELETE
+USING (auth.uid() = user_id);
+
+-- ============================================
+-- 7. READ-ONLY TABLES (Public Access)
 -- ============================================
 -- Tables like food_items, nutrition_rules, dataset_akg 
 -- should be readable by everyone
