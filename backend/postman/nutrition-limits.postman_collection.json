@@ -1,0 +1,295 @@
+{
+    "info": {
+        "name": "NutriMori - Nutrition Limits",
+        "description": "Collection to test Nutrition Limits API endpoints.\n\n## Overview:\nThis module calculates daily nutritional limits for users using AI (Gemini LLM).\n\n## IMPORTANT - Data Flow:\nData diambil OTOMATIS dari tabel `users` dan `user_preferences` yang sudah ada!\n\n### Alur Utama (Otomatis):\n1. User sudah punya data di tabel `users` (age, height_cm, weight_kg)\n2. User membuat/update preferences via `PUT /user-preferences`\n3. System OTOMATIS mengambil data dari `users` + `user_preferences`\n4. System mengirim ke Gemini AI untuk kalkulasi\n5. Hasil disimpan ke tabel `nutrition_limits`\n\n### Endpoints:\n- `GET /nutrition-limits` - Ambil limits yang sudah dihitung\n- `POST /nutrition-limits/recalculate` - Trigger ulang kalkulasi (ambil dari DB)\n- `POST /nutrition-limits/calculate` - Preview saja (input manual, tidak disimpan)\n\n## Cara Test:\n1. Pastikan user sudah punya data di tabel `users` dan `user_preferences`\n2. Panggil `POST /nutrition-limits/recalculate` untuk trigger kalkulasi\n3. Panggil `GET /nutrition-limits` untuk lihat hasil",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{access_token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:3001",
+            "type": "string"
+        },
+        {
+            "key": "access_token",
+            "value": "YOUR_JWT_TOKEN_HERE",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "1. Main Flow (Ambil dari Database)",
+            "description": "Endpoint utama yang mengambil data dari tabel users dan user_preferences yang sudah ada.",
+            "item": [
+                {
+                    "name": "1.1 Recalculate (Ambil dari DB & Simpan)",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-limits/recalculate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "nutrition-limits",
+                                "recalculate"
+                            ]
+                        },
+                        "description": "## ENDPOINT UTAMA UNTUK TESTING\n\nEndpoint ini:\n1. **Mengambil data dari tabel `users`**: age, height_cm, weight_kg, gender\n2. **Mengambil data dari tabel `user_preferences`**: goals, allergies, medical_history\n3. **Mengirim ke Gemini AI** untuk kalkulasi personalized\n4. **Menyimpan hasil** ke tabel `nutrition_limits`\n\n### Tidak perlu input apapun!\nCukup panggil endpoint ini dengan Bearer token.\n\n### Syarat:\n- User harus sudah punya data di tabel `users` (age, height_cm, weight_kg)\n- User harus sudah punya data di tabel `user_preferences`\n\nRequires Bearer token."
+                    },
+                    "response": [
+                        {
+                            "name": "Success - Calculated from DB",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/nutrition-limits/recalculate",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["nutrition-limits", "recalculate"]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"max_calories\": 2100,\n    \"max_protein\": 130,\n    \"max_carbs\": 260,\n    \"max_fat\": 70,\n    \"max_sugar\": 52,\n    \"max_fiber\": 38,\n    \"max_sodium\": 2300,\n    \"max_cholesterol\": 300\n  },\n  \"explanation\": \"Based on your profile (25yo male, 170cm, 70kg) with moderate activity and weight loss goals, calculated using Mifflin-St Jeor equation with 15% caloric deficit.\"\n}"
+                        },
+                        {
+                            "name": "Error - User Profile Incomplete",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/nutrition-limits/recalculate",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["nutrition-limits", "recalculate"]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": false,\n  \"error\": \"User profile not found\"\n}"
+                        },
+                        {
+                            "name": "Error - Preferences Not Found",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/nutrition-limits/recalculate",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["nutrition-limits", "recalculate"]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": false,\n  \"error\": \"User preferences not found. Please set your preferences first.\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "1.2 Get Nutrition Limits (Hasil Kalkulasi)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-limits",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "nutrition-limits"
+                            ]
+                        },
+                        "description": "## Ambil Hasil Kalkulasi\n\nMengambil nutrition limits yang sudah dihitung dan disimpan di tabel `nutrition_limits`.\n\nGunakan endpoint ini setelah:\n- Memanggil `POST /nutrition-limits/recalculate`, ATAU\n- Setelah user update preferences via `PUT /user-preferences`\n\nRequires Bearer token."
+                    },
+                    "response": [
+                        {
+                            "name": "Success - Limits Found",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/nutrition-limits",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["nutrition-limits"]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"max_calories\": 2000,\n    \"max_protein\": 120,\n    \"max_carbs\": 250,\n    \"max_fat\": 65,\n    \"max_sugar\": 50,\n    \"max_fiber\": 25,\n    \"max_sodium\": 2300,\n    \"max_cholesterol\": 300,\n    \"explanation\": \"Based on your profile as a 25-year-old male with moderate activity level and weight loss goals.\"\n  }\n}"
+                        },
+                        {
+                            "name": "Limits Not Set Yet",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/nutrition-limits",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["nutrition-limits"]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": false,\n  \"message\": \"Nutrition limits not set. Please update your preferences.\",\n  \"data\": null\n}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "2. Preview/Testing (Input Manual)",
+            "description": "Endpoint untuk preview kalkulasi dengan input manual. TIDAK menyimpan ke database. Berguna untuk testing atau menunjukkan preview ke user sebelum mereka membuat preferences.",
+            "item": [
+                {
+                    "name": "2.1 Calculate Preview (Manual Input)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"age\": 25,\n  \"height_cm\": 170,\n  \"weight_kg\": 70,\n  \"gender\": \"male\",\n  \"activity_level\": \"moderate\",\n  \"goals\": [\"weight_loss\", \"healthy_eating\"],\n  \"allergies\": [\"gluten\"],\n  \"medical_history\": [\"none\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-limits/calculate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "nutrition-limits",
+                                "calculate"
+                            ]
+                        },
+                        "description": "## Preview Kalkulasi (TIDAK DISIMPAN)\n\nEndpoint ini untuk **testing/preview** saja.\n\n### Catatan:\n- Input manual (tidak mengambil dari database)\n- Hasil TIDAK disimpan ke database\n- Berguna untuk:\n  - Testing kalkulasi AI\n  - Menunjukkan preview ke user sebelum mereka commit\n  - Debugging\n\n### Untuk production use:\nGunakan `POST /nutrition-limits/recalculate` yang mengambil dari database."
+                    },
+                    "response": [
+                        {
+                            "name": "Success - Preview Result",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [{"key": "Content-Type", "value": "application/json"}],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"age\": 25,\n  \"height_cm\": 170,\n  \"weight_kg\": 70,\n  \"gender\": \"male\",\n  \"activity_level\": \"moderate\",\n  \"goals\": [\"weight_loss\"]\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/nutrition-limits/calculate",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["nutrition-limits", "calculate"]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"max_calories\": 1870,\n    \"max_protein\": 140,\n    \"max_carbs\": 187,\n    \"max_fat\": 62,\n    \"max_sugar\": 47,\n    \"max_fiber\": 38,\n    \"max_sodium\": 2300,\n    \"max_cholesterol\": 300\n  },\n  \"explanation\": \"Using Mifflin-St Jeor equation with 15% deficit for weight loss.\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "2.2 Preview - Weight Loss",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"age\": 28,\n  \"height_cm\": 175,\n  \"weight_kg\": 85,\n  \"gender\": \"male\",\n  \"activity_level\": \"sedentary\",\n  \"goals\": [\"weight_loss\", \"diet\"],\n  \"allergies\": [],\n  \"medical_history\": []\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-limits/calculate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "nutrition-limits",
+                                "calculate"
+                            ]
+                        },
+                        "description": "Preview: Kalkulasi untuk goal weight loss.\n\nExpected:\n- Calories reduced 15-20%\n- Higher protein ratio (30%)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2.3 Preview - Muscle Gain",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"age\": 22,\n  \"height_cm\": 180,\n  \"weight_kg\": 75,\n  \"gender\": \"male\",\n  \"activity_level\": \"active\",\n  \"goals\": [\"muscle_gain\", \"bulk\"],\n  \"allergies\": [],\n  \"medical_history\": []\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-limits/calculate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "nutrition-limits",
+                                "calculate"
+                            ]
+                        },
+                        "description": "Preview: Kalkulasi untuk goal muscle gain.\n\nExpected:\n- Calories increased 10% (surplus)\n- Higher protein (1.6-2.2g per kg)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "2.4 Preview - Medical Conditions",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"age\": 45,\n  \"height_cm\": 168,\n  \"weight_kg\": 78,\n  \"gender\": \"female\",\n  \"activity_level\": \"light\",\n  \"goals\": [\"healthy_eating\"],\n  \"allergies\": [\"dairy\", \"nuts\"],\n  \"medical_history\": [\"diabetes\", \"hypertension\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-limits/calculate",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "nutrition-limits",
+                                "calculate"
+                            ]
+                        },
+                        "description": "Preview: Kalkulasi dengan medical conditions.\n\nAI should consider:\n- Diabetes: Lower sugar and carbs\n- Hypertension: Lower sodium"
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}
