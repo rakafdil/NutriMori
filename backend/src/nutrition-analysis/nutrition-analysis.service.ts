@@ -1,15 +1,15 @@
 import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
+    BadRequestException,
+    Injectable,
+    Logger,
+    NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase';
 import {
-  CreateNutritionAnalysisDto,
-  MicronutrientsDto,
-  NutritionAnalysisResponseDto,
-  NutritionFactsNumericDto,
+    CreateNutritionAnalysisDto,
+    MicronutrientsDto,
+    NutritionAnalysisResponseDto,
+    NutritionFactsNumericDto,
 } from './dto';
 
 interface FoodLogItem {
@@ -432,7 +432,9 @@ export class NutritionAnalysisService {
       cholesterol: data.total_cholesterol,
     };
 
-    return this.formatResponse(data, nutrition, data.micronutrients || {});
+    const macroRatio = this.calculateMacroRatio(nutrition);
+
+    return this.formatResponse(data, nutrition, data.micronutrients || {}, macroRatio);
   }
 
   async getUserAnalysisHistory(
