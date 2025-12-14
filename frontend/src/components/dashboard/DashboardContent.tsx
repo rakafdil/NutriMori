@@ -85,6 +85,7 @@ const isValidUUID = (str: string): boolean => {
 const DashboardContent: React.FC = () => {
   const { user, isLoading: isUserLoading } = useUser();
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [hasInitialLoad, setHasInitialLoad] = useState(false);
 
   // Flow states
   const [currentStep, setCurrentStep] = useState<FlowStep>("idle");
@@ -137,8 +138,13 @@ const DashboardContent: React.FC = () => {
     if (logsData && Array.isArray(logsData) && isMountedRef.current) {
       const transformedMeals = logsData.map(transformFoodLogToMeal);
       setMeals(transformedMeals);
+      setHasInitialLoad(true);
+    } else if (logsData === null && !isLoadingLogs && !hasInitialLoad) {
+      // Only set empty array on initial load if we explicitly got null/empty
+      setMeals([]);
+      setHasInitialLoad(true);
     }
-  }, [logsData]);
+  }, [logsData, isLoadingLogs, hasInitialLoad]);
 
   // Fetch analyses for meals - with debounce to prevent excessive calls
   const fetchAnalysesForMeals = useCallback(
@@ -245,9 +251,10 @@ const DashboardContent: React.FC = () => {
   const handleDelete = async (mealId: string) => {
     const result = await deleteLog(mealId);
     if (result.success) {
-      // Refetch to ensure sync with backend - don't do optimistic updates
-      // that might conflict with ongoing fetches
-      await Promise.all([refetchLogs(), refetchStreaks()]);
+      // Wait a bit for DB to sync then refetch
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await refetchLogs();
+      await refetchStreaks();
     } else {
       console.error("Failed to delete meal:", result.error);
     }
@@ -293,24 +300,24 @@ const DashboardContent: React.FC = () => {
         );
       }
 
-      // Step 3: Small delay to ensure DB consistency
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Step 3: Longer delay to ensure DB consistency
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       // Step 4: Run analysis
       const analysis = await createAnalysis(logId);
       setAnalysisResult(analysis);
 
-      // Step 5: Refetch data from server instead of optimistic update
-      // This prevents race condition and ensures data consistency
-      await Promise.all([refetchLogs(), refetchStreaks()]);
+      // Step 5: Refetch data sequentially to avoid race conditions
+      await refetchLogs();
+      await refetchStreaks();
 
       setCurrentStep("result");
     } catch (err) {
       console.error("Failed to log food:", err);
       alert("Failed to save meal. Please try again.");
       // Refetch to ensure UI is in sync with server state
-      refetchLogs();
-      refetchStreaks();
+      await refetchLogs();
+      await refetchStreaks();
     } finally {
       setIsProcessing(false);
     }
@@ -322,7 +329,8 @@ const DashboardContent: React.FC = () => {
     setCurrentStep("idle");
   };
 
-  if (isLoadingLogs && meals.length === 0) {
+  // Loading state - only show on initial load
+  if (isLoadingLogs && !hasInitialLoad) {
     return (
       <div className="p-6 max-w-7xl mx-auto flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
@@ -333,7 +341,7 @@ const DashboardContent: React.FC = () => {
     );
   }
 
-  if (logsError && meals.length === 0) {
+  if (logsError && !hasInitialLoad) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center">

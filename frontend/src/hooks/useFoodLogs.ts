@@ -26,70 +26,60 @@ export const useFoodLogsList = (
   startDate?: Date | string,
   endDate?: Date | string
 ) => {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<any[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
-  const fetchIdRef = useRef(0);
-  const isRefetchingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchData = useCallback(
-    async (isRefetch = false) => {
-      // Prevent concurrent fetches
-      if (isRefetchingRef.current && !isRefetch) {
-        return;
+  const fetchData = useCallback(async () => {
+    // Cancel any ongoing fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const sDate =
+        startDate instanceof Date ? startDate.toISOString() : startDate;
+      const eDate = endDate instanceof Date ? endDate.toISOString() : endDate;
+
+      const result = await FoodLogsService.findAll({
+        startDate: sDate,
+        endDate: eDate,
+      });
+
+      if (mountedRef.current) {
+        // Only update if we got valid data
+        const validData = Array.isArray(result) ? result : [];
+        setData(validData);
+        setError(null);
+        setIsLoading(false);
       }
-
-      const currentFetchId = ++fetchIdRef.current;
-
-      if (!isRefetch) {
-        setIsLoading(true);
+    } catch (err: any) {
+      if (mountedRef.current && err.name !== "AbortError") {
+        setError(err.message || "Gagal mengambil data");
+        setIsLoading(false);
+        // Don't clear data on error - keep showing old data
       }
-      isRefetchingRef.current = true;
-      setError(null);
-
-      try {
-        const sDate =
-          startDate instanceof Date ? startDate.toISOString() : startDate;
-        const eDate = endDate instanceof Date ? endDate.toISOString() : endDate;
-
-        const result = await FoodLogsService.findAll({
-          startDate: sDate,
-          endDate: eDate,
-        });
-
-        // Only update if this is the latest fetch and component is mounted
-        if (mountedRef.current && currentFetchId === fetchIdRef.current) {
-          setData(result);
-          setError(null);
-        }
-      } catch (err: any) {
-        if (mountedRef.current && currentFetchId === fetchIdRef.current) {
-          setError(err.message || "Gagal mengambil data");
-        }
-      } finally {
-        if (mountedRef.current && currentFetchId === fetchIdRef.current) {
-          setIsLoading(false);
-          isRefetchingRef.current = false;
-        }
-      }
-    },
-    [startDate, endDate]
-  );
-
-  const refetch = useCallback(async () => {
-    await fetchData(true);
-  }, [fetchData]);
+    }
+  }, [startDate, endDate]);
 
   useEffect(() => {
     mountedRef.current = true;
-    fetchData(false);
+    fetchData();
     return () => {
       mountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, [fetchData]);
 
-  return { data, isLoading, error, refetch };
+  return { data, isLoading, error, refetch: fetchData };
 };
 
 /**
@@ -109,13 +99,11 @@ export const useDailySummary = (date?: Date | string) => {
       const result = await FoodLogsService.getDailySummary(qDate);
       if (mountedRef.current) {
         setData(result);
+        setIsLoading(false);
       }
     } catch (err: any) {
       if (mountedRef.current) {
         setError(err.message || "Gagal mengambil summary harian");
-      }
-    } finally {
-      if (mountedRef.current) {
         setIsLoading(false);
       }
     }
@@ -140,23 +128,19 @@ export const useStreaks = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
-  const fetchIdRef = useRef(0);
 
   const fetchData = useCallback(async () => {
-    const currentFetchId = ++fetchIdRef.current;
     setIsLoading(true);
     setError(null);
     try {
       const result = await FoodLogsService.getStreaks();
-      if (mountedRef.current && currentFetchId === fetchIdRef.current) {
+      if (mountedRef.current) {
         setData(result);
+        setIsLoading(false);
       }
     } catch (err: any) {
-      if (mountedRef.current && currentFetchId === fetchIdRef.current) {
+      if (mountedRef.current) {
         setError(err.message);
-      }
-    } finally {
-      if (mountedRef.current && currentFetchId === fetchIdRef.current) {
         setIsLoading(false);
       }
     }

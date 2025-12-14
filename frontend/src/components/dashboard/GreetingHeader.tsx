@@ -21,10 +21,10 @@ const GreetingHeader: React.FC<GreetingHeaderProps> = ({
   return (
     <div className="flex justify-between items-end animate-fade-in">
       <div className="space-y-1">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white flex items-center gap-2 tracking-tight pb-2">
           Halo,{" "}
           {mounted && username ? (
-            <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent pb-1">
               {username}
             </span>
           ) : (

@@ -58,10 +58,10 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
   ) => {
     const formatted = formatValue(value);
     if (label === "Serat" || label === "Gula") {
-      return formatted + "g";
+      return formatted;
     }
     if (label === "Sodium" || label === "Kolesterol") {
-      return formatted + "mg";
+      return formatted;
     }
     return formatted;
   };
@@ -87,7 +87,7 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
         nutritionFacts.fat) && (
         <div className="grid grid-cols-4 gap-3 mb-4">
           {nutritionFacts.calories && (
-            <div className="bg-emerald-50 dark:bg-emerald-900/30 p-3 rounded-xl text-center">
+            <div className="bg-emerald-50 dark:bg-emerald-900/30 p-3 rounded-xl text-center flex flex-col justify-center">
               <Flame className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
               <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
                 {formatValue(nutritionFacts.calories)}
@@ -96,7 +96,7 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
             </div>
           )}
           {!isEmptyOrZero(nutritionFacts.protein) && (
-            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl text-center">
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl text-center flex flex-col justify-center">
               <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
                 {formatValue(nutritionFacts.protein)}
               </p>
@@ -106,7 +106,7 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
             </div>
           )}
           {!isEmptyOrZero(nutritionFacts.carbs) && (
-            <div className="bg-orange-50 dark:bg-orange-900/30 p-3 rounded-xl text-center">
+            <div className="bg-orange-50 dark:bg-orange-900/30 rounded-xl text-center flex flex-col justify-center">
               <p className="text-xl font-bold text-orange-700 dark:text-orange-300">
                 {formatValue(nutritionFacts.carbs)}
               </p>
@@ -114,7 +114,7 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
             </div>
           )}
           {!isEmptyOrZero(nutritionFacts.fat) && (
-            <div className="bg-purple-50 dark:bg-purple-900/30 p-3 rounded-xl text-center">
+            <div className="bg-purple-50 dark:bg-purple-900/30 p-3 rounded-xl text-center flex flex-col justify-center">
               <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
                 {formatValue(nutritionFacts.fat)}
               </p>
