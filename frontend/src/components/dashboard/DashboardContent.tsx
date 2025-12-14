@@ -96,6 +96,10 @@ const DashboardContent: React.FC = () => {
   const [analysisResult, setAnalysisResult] =
     useState<NutritionAnalysisResponse | null>(null);
   const [lastRawInput, setLastRawInput] = useState("");
+  const [mealAnalyses, setMealAnalyses] = useState<
+    { mealId: string; analysis: NutritionAnalysisResponse }[]
+  >([]);
+  const [analysesApplied, setAnalysesApplied] = useState(false);
 
   const { fetchProfile } = useProfile();
 
@@ -118,7 +122,8 @@ const DashboardContent: React.FC = () => {
     refetch: refetchLogs,
   } = useFoodLogsList();
   const { isLoading: isLoadingStreaks, data: streaksData } = useStreaks();
-  const { logFoodText, logFoodItem, isSubmitting } = useFoodLogActions();
+  const { logFoodText, logFoodItem, isSubmitting, deleteLog, updateLog } =
+    useFoodLogActions();
 
   useEffect(() => {
     fetchProfile().catch(console.error);
@@ -127,6 +132,7 @@ const DashboardContent: React.FC = () => {
   useEffect(() => {
     if (logsData && Array.isArray(logsData)) {
       setMeals(logsData.map(transformFoodLogToMeal));
+      setAnalysesApplied(false); // Reset when logs change
     }
   }, [logsData]);
 
@@ -139,6 +145,73 @@ const DashboardContent: React.FC = () => {
 
   // Handlers
   const handleOpenAddMeal = () => setCurrentStep("input");
+  useEffect(() => {
+    if (!analysesApplied && mealAnalyses.length > 0) {
+      setMeals((prevMeals) =>
+        prevMeals.map((meal) => {
+          const analysis = mealAnalyses.find(
+            (a) => a.mealId === meal.id
+          )?.analysis;
+          if (analysis) {
+            return {
+              ...meal,
+              nutrition: {
+                ...meal.nutrition,
+                ...analysis.nutritionFacts,
+              },
+            };
+          }
+          return meal;
+        })
+      );
+      setAnalysesApplied(true);
+    }
+  }, [mealAnalyses, analysesApplied]);
+  useEffect(() => {
+    const fetchAllAnalyses = async () => {
+      const analyses: {
+        mealId: string;
+        analysis: NutritionAnalysisResponse;
+      }[] = [];
+      for (const meal of meals) {
+        try {
+          const analysis = await fetchAnalysisById(meal.id);
+          if (analysis) {
+            analyses.push({ mealId: meal.id, analysis });
+          }
+        } catch (err) {
+          console.error(`Failed to fetch analysis for meal ${meal.id}:`, err);
+        }
+      }
+      setMealAnalyses(analyses);
+    };
+
+    if (meals.length > 0) {
+      fetchAllAnalyses();
+    }
+  }, [meals, fetchAnalysisById]);
+
+  // useEffect(() => {
+  //   if (mealAnalyses.length > 0) {
+  //     setMeals((prevMeals) =>
+  //       prevMeals.map((meal) => {
+  //         const analysis = mealAnalyses.find(
+  //           (a) => a.mealId === meal.id
+  //         )?.analysis;
+  //         if (analysis) {
+  //           return {
+  //             ...meal,
+  //             nutrition: {
+  //               ...meal.nutrition,
+  //               ...analysis.nutritionFacts, // Update nutrition dengan data analisis
+  //             },
+  //           };
+  //         }
+  //         return meal;
+  //       })
+  //     );
+  //   }
+  // }, [mealAnalyses]);
 
   const handleAnalyze = async (input: string) => {
     setIsProcessing(true);
@@ -147,6 +220,35 @@ const DashboardContent: React.FC = () => {
     setMatchResults(results);
     setIsProcessing(false);
     setCurrentStep("verify");
+  };
+
+  // Tambahkan handleEdit dan handleDelete
+  const handleEdit = (meal: Meal) => {
+    // Placeholder: Implement edit logic, e.g., open edit modal
+    console.log("Edit meal:", meal);
+    // TODO: Open edit modal or navigate to edit page
+    // Contoh sederhana: prompt untuk text baru, lalu update
+    const newText = prompt("Edit meal name:", meal.name);
+    if (newText && newText !== meal.name) {
+      // Asumsikan update hanya text, sesuaikan dengan UpdateFoodLogDto
+      updateLog(meal.id, { raw_text: newText } as any).then((result) => {
+        if (result.success) {
+          refetchLogs(); // Refresh data setelah update
+        } else {
+          console.error("Failed to update meal:", result.error);
+        }
+      });
+    }
+  };
+
+  const handleDelete = async (mealId: string) => {
+    const result = await deleteLog(mealId);
+    if (result.success) {
+      refetchLogs(); // Refresh data setelah delete
+    } else {
+      console.error("Failed to delete meal:", result.error);
+      // TODO: Show error toast or alert
+    }
   };
 
   const handleVerificationConfirm = async (verifiedFoods: VerifiedFood[]) => {
@@ -281,6 +383,8 @@ const DashboardContent: React.FC = () => {
           <MealHistory
             meals={meals}
             onAddMeal={handleOpenAddMeal}
+            onEdit={handleEdit} // Pass handleEdit
+            onDelete={handleDelete} // Pass handleDelete
             isDisabled={isSubmitting || isProcessing}
           />
         </div>

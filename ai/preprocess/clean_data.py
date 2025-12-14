@@ -4,11 +4,11 @@ from pathlib import Path
 import os
 
 # ==============================================================================
-# KONFIGURASI PATH (SESUAIKAN NAMA FILE KAMU)
+# KONFIGURASI PATH
 # ==============================================================================
 BASE_DIR = Path(__file__).resolve().parent.parent.parent # Folder Root 'NutriMori'
 
-# Ganti nama file ini sesuai nama file hasil download terakhirmu (500 item)
+# Ganti dengan nama file dataset terbarumu (yang kolomnya bahasa Inggris)
 INPUT_FILENAME = "dataset_gabungan.csv" 
 
 RAW_PATH = BASE_DIR / "ai" / "data raw" / INPUT_FILENAME
@@ -32,6 +32,7 @@ def build_food_text(row):
     """
     parts = [str(row["nama_clean"])]
 
+    # Kolom ini sudah di-rename ke Bahasa Indonesia di Tahap 0
     kelompok = str(row.get("Kelompok Makanan", ""))
     if kelompok.lower() not in ["-", "nan", "none", "", "0"]:
         parts.append(f"kelompok {kelompok.lower()}")
@@ -52,6 +53,49 @@ def main():
 
     df = pd.read_csv(RAW_PATH)
     print(f"📊 Total baris awal: {len(df)}")
+
+    # ---------------------------------------------------------
+    # TAHAP 0: PENYESUAIAN NAMA KOLOM (ENGLISH -> INDONESIA)
+    # ---------------------------------------------------------
+    # Ini langkah kuncinya. Kita ubah nama kolom dataset baru 
+    # agar cocok dengan logika kodemu yang lama.
+    kamus_kolom = {
+        'name': 'Nama Bahan Makanan',
+        'condition': 'Mentah/Olahan',
+        'food_group': 'Kelompok Makanan',
+        'energy': 'Energi',
+        'protein': 'Protein',
+        'total_fat': 'Lemak Total',
+        'carbohydrate': 'Karbohidrat',
+        'sugar': 'Gula',
+        'fiber': 'Serat',
+        'calcium': 'Kalsium',
+        'phosphorus': 'Fosfor',
+        'iron': 'Besi',
+        'magnesium': 'Magnesium',
+        'potassium': 'Kalium',
+        'sodium': 'Natrium',
+        'zinc': 'Seng',
+        'copper': 'Tembaga',
+        'vitamin_c': 'Vitamin C',
+        'vitamin_b1': 'Vitamin B1',
+        'vitamin_b2': 'Vitamin B2',
+        'vitamin_b3': 'Vitamin B3',
+        'vitamin_b6': 'Vitamin B6',
+        'vitamin_b9': 'Vitamin B9',
+        'vitamin_b12': 'Vitamin B12',
+        'vitamin_a': 'Vitamin A',
+        'vitamin_d': 'Vitamin D',
+        'vitamin_e': 'Vitamin E',
+        'vitamin_k': 'Vitamin K',
+        'saturated_fat': 'Lemak Jenuh',
+        'monounsaturated_fat': 'Lemak Tunggal',
+        'polyunsaturated_fat': 'Lemak Ganda',
+        'cholesterol': 'Kolesterol'
+    }
+    
+    print("🔄 Melakukan mapping nama kolom (Inggris -> Indonesia)...")
+    df = df.rename(columns=kamus_kolom)
 
     # ---------------------------------------------------------
     # TAHAP 1: PEMBERSIHAN DATA NUMERIK (SAFETY NET)
@@ -83,7 +127,12 @@ def main():
     print("🤖 Menyiapkan kolom untuk AI (food_text)...")
     
     # 1. Buat nama bersih (lowercase)
-    df["nama_clean"] = df["Nama Bahan Makanan"].apply(normalize_name)
+    # Pastikan kolom "Nama Bahan Makanan" ada (hasil rename di Tahap 0)
+    if "Nama Bahan Makanan" in df.columns:
+        df["nama_clean"] = df["Nama Bahan Makanan"].apply(normalize_name)
+    else:
+        print("❌ Error: Kolom 'Nama Bahan Makanan' tidak ditemukan setelah rename.")
+        return
     
     # 2. Buat teks gabungan untuk embedding
     df["food_text"] = df.apply(build_food_text, axis=1)
