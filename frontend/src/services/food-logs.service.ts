@@ -13,7 +13,7 @@ export interface CreateFoodLogDto {
 
 export interface LogFoodInputDto {
   text: string; // Misal untuk input natural language
-  // field lain
+  mealType?: "breakfast" | "lunch" | "dinner" | "snack"; // Added to match backend
 }
 
 export interface CreateFoodLogItemDto {

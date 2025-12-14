@@ -26,20 +26,6 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
     left: number;
     width: number;
   } | null>(null);
-
-  const toggleDropdown = (i: number) => {
-    if (openDropdown === i) {
-      setOpenDropdown(null);
-      setDropdownPos(null);
-      return;
-    }
-    const btn = buttonRefs.current[i];
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    setDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
-    setOpenDropdown(i);
-  };
-  // State for each candidate's selection
   const [selections, setSelections] = useState<VerifiedFood[]>(() =>
     matchResults.map((m) => ({
       candidate: m.candidate,
@@ -49,12 +35,18 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
       unit: "porsi",
     }))
   );
-
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<
     { food_id: number; nama: string }[]
   >([]);
+  const [isAddingCustom, setIsAddingCustom] = useState(false);
+  const [customDropdownPos, setCustomDropdownPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const addButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => setVisible(true), 10);
@@ -115,13 +107,63 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
     onConfirm(selections.filter((s) => s.selectedFoodId !== 0));
   };
 
+  const toggleDropdown = (i: number) => {
+    if (openDropdown === i) {
+      setOpenDropdown(null);
+      setDropdownPos(null);
+      return;
+    }
+    const btn = buttonRefs.current[i];
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    setDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+    setOpenDropdown(i);
+  };
+
+  const handleAddCustomMeal = () => {
+    setIsAddingCustom(true);
+    setSearchQuery("");
+    setSearchResults([]);
+    const btn = addButtonRef.current;
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      setCustomDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+    }
+  };
+
+  const handleSelectCustomFood = (food: { food_id: number; nama: string }) => {
+    setSelections((prev) => [
+      ...prev,
+      {
+        candidate: food.nama,
+        selectedFoodId: food.food_id,
+        selectedName: food.nama,
+        quantity: 1,
+        unit: "porsi",
+      },
+    ]);
+    setIsAddingCustom(false);
+    setCustomDropdownPos(null);
+    setSearchQuery("");
+  };
+
   useLayoutEffect(() => {
     const onResize = () => {
-      if (openDropdown == null) return;
-      const btn = buttonRefs.current[openDropdown];
-      if (!btn) return;
-      const rect = btn.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+      if (openDropdown == null && !isAddingCustom) return;
+      if (openDropdown !== null) {
+        const btn = buttonRefs.current[openDropdown];
+        if (btn) {
+          const rect = btn.getBoundingClientRect();
+          setDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+        }
+      }
+      if (isAddingCustom) {
+        const btn = addButtonRef.current;
+        if (btn) {
+          const rect = btn.getBoundingClientRect();
+          setCustomDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+        }
+      }
     };
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", onResize, true);
@@ -129,7 +171,7 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onResize, true);
     };
-  }, [openDropdown]);
+  }, [openDropdown, isAddingCustom]);
 
   return (
     <div
@@ -160,6 +202,49 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           Periksa dan sesuaikan hasil pencocokan makanan di bawah ini.
         </p>
+
+        <div className="mb-4">
+          <button
+            ref={addButtonRef}
+            onClick={handleAddCustomMeal}
+            className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+          >
+            Tambah Makanan Kustom
+          </button>
+          {isAddingCustom &&
+            customDropdownPos &&
+            createPortal(
+              <div
+                style={{
+                  position: "fixed",
+                  top: customDropdownPos.top,
+                  left: customDropdownPos.left,
+                  width: customDropdownPos.width,
+                  zIndex: 9999,
+                }}
+                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+              >
+                <input
+                  type="text"
+                  placeholder="Cari makanan kustom..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-transparent dark:text-white focus:outline-none"
+                  autoFocus
+                />
+                {searchResults.map((r) => (
+                  <button
+                    key={r.food_id}
+                    onClick={() => handleSelectCustomFood(r)}
+                    className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white"
+                  >
+                    {r.nama}
+                  </button>
+                ))}
+              </div>,
+              document.body
+            )}
+        </div>
 
         <div className="space-y-3 mb-6">
           {selections.map((sel, index) => (

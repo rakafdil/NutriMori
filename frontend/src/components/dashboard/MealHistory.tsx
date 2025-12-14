@@ -8,12 +8,16 @@ import MealFilters, { MealFiltersState } from "./MealFilters";
 interface MealHistoryProps {
   meals: Meal[];
   onAddMeal: () => void;
+  onEdit?: (meal: Meal) => void; // Tambahkan onEdit
+  onDelete?: (mealId: string) => void; // Tambahkan onDelete
   isDisabled?: boolean;
 }
 
 const MealHistory: React.FC<MealHistoryProps> = ({
   meals,
   onAddMeal,
+  onEdit, // Tambahkan onEdit
+  onDelete, // Tambahkan onDelete
   isDisabled = false,
 }) => {
   const [showFilters, setShowFilters] = useState(false);
@@ -146,7 +150,14 @@ const MealHistory: React.FC<MealHistoryProps> = ({
           )}
         </div>
       ) : (
-        filteredMeals.map((meal) => <MealCard key={meal.id} meal={meal} />)
+        filteredMeals.map((meal) => (
+          <MealCard
+            key={meal.id}
+            meal={meal}
+            onEdit={onEdit} // Pass onEdit
+            onDelete={onDelete} // Pass onDelete
+          />
+        ))
       )}
     </div>
   );
