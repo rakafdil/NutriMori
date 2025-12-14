@@ -88,12 +88,22 @@ const SettingsContent: React.FC = () => {
   } = usePreferences();
 
   useEffect(() => {
-    // Load from cache first, then fetch from API
+    // Load from cache first for instant display
     loadProfileCache();
     loadPreferencesCache();
-    fetchProfile().catch(console.error);
-    fetchPreferences().catch(console.error);
-  }, []);
+
+    // Then fetch fresh data from API
+    const fetchData = async () => {
+      try {
+        await Promise.all([fetchProfile(), fetchPreferences()]);
+      } catch (error) {
+        console.error("Failed to fetch settings data:", error);
+      }
+    };
+
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency - only run on mount
 
   const handleLogout = () => {
     setIsLoggingOut(true);

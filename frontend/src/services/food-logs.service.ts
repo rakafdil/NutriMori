@@ -31,6 +31,28 @@ export interface FoodLogFilterParams {
   endDate?: string;
 }
 
+// Helper for retrying failed requests
+const fetchWithRetry = async (
+  url: string,
+  options: RequestInit,
+  retries = 2
+): Promise<Response> => {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await fetch(url, options);
+      if (response.ok || i === retries) {
+        return response;
+      }
+      // Wait before retry (exponential backoff)
+      await new Promise((r) => setTimeout(r, 100 * Math.pow(2, i)));
+    } catch (error) {
+      if (i === retries) throw error;
+      await new Promise((r) => setTimeout(r, 100 * Math.pow(2, i)));
+    }
+  }
+  throw new Error("Request failed after retries");
+};
+
 // --- Service Implementation ---
 
 export const FoodLogsService = {
@@ -38,213 +60,203 @@ export const FoodLogsService = {
    * Create standard log (POST /food-logs)
    */
   create: async (data: CreateFoodLogDto) => {
-    try {
-      const response = await fetch(
-        getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.CREATE),
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(data),
-        }
-      );
+    const response = await fetchWithRetry(
+      getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.CREATE),
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      }
+    );
 
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to create food log");
     }
+    return await response.json();
   },
 
   /**
    * Log food input specialized (POST /food-logs/log)
    */
   logFood: async (input: LogFoodInputDto) => {
-    try {
-      const response = await fetch(
-        getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.LOG),
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(input),
-        }
-      );
+    const response = await fetchWithRetry(
+      getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.LOG),
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(input),
+      }
+    );
 
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to log food");
     }
+    return await response.json();
   },
 
   /**
-   * Log food input specialized (POST /food-logs/log)
+   * Log food item (POST /food-logs/item)
    */
   logFoodItem: async (input: CreateFoodLogItemDto) => {
-    try {
-      const response = await fetch(
-        getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.CREATE_ITEM),
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(input),
-        }
-      );
+    const response = await fetchWithRetry(
+      getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.CREATE_ITEM),
+      {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(input),
+      }
+    );
 
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to log food item");
     }
+    return await response.json();
   },
 
   /**
    * Get all logs with filters (GET /food-logs/lists)
    */
   findAll: async (params?: FoodLogFilterParams) => {
-    try {
-      const url = new URL(getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.LIST));
+    const url = new URL(getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.LIST));
 
-      if (params?.startDate)
-        url.searchParams.append("startDate", params.startDate);
-      if (params?.endDate) url.searchParams.append("endDate", params.endDate);
+    if (params?.startDate)
+      url.searchParams.append("startDate", params.startDate);
+    if (params?.endDate) url.searchParams.append("endDate", params.endDate);
 
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: getAuthHeaders(),
-      });
-      console.log(response);
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
+    const response = await fetchWithRetry(url.toString(), {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to fetch food logs");
     }
+    return await response.json();
   },
 
   /**
    * Get daily summary (GET /food-logs/daily)
    */
   getDailySummary: async (date?: string) => {
-    try {
-      const url = new URL(
-        getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.DAILY_BY_USER)
-      );
-      if (date) url.searchParams.append("date", date);
+    const url = new URL(
+      getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.DAILY_BY_USER)
+    );
+    if (date) url.searchParams.append("date", date);
 
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: getAuthHeaders(),
-      });
+    const response = await fetchWithRetry(url.toString(), {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
 
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to get daily summary");
     }
-  },
-
-  /**
-   * Get weekly summary (GET /food-logs/weekly)
-   */
-  getWeeklySummary: async (endDate?: string) => {
-    try {
-      const url = new URL(
-        getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.WEEKLY_BY_USER)
-      );
-      if (endDate) url.searchParams.append("endDate", endDate);
-
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: getAuthHeaders(),
-      });
-
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
-    }
+    return await response.json();
   },
 
   /**
    * Get streaks (GET /food-logs/streaks)
    */
   getStreaks: async (endDate?: string) => {
-    try {
-      const url = new URL(getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.STREAKS));
-      if (endDate) url.searchParams.append("endDate", endDate);
+    const url = new URL(getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.STREAKS));
+    if (endDate) url.searchParams.append("endDate", endDate);
 
-      const response = await fetch(url.toString(), {
-        method: "GET",
-        headers: getAuthHeaders(),
-      });
+    const response = await fetchWithRetry(url.toString(), {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
 
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to get streaks");
     }
+    return await response.json();
+  },
+
+  /**
+   * Get weekly summary (GET /food-logs/weekly)
+   */
+  getWeeklySummary: async (endDate?: string) => {
+    const url = new URL(
+      getApiUrl(API_CONFIG.ENDPOINTS.FOOD_LOGS.WEEKLY_BY_USER)
+    );
+    if (endDate) url.searchParams.append("endDate", endDate);
+
+    const response = await fetchWithRetry(url.toString(), {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to get weekly summary");
+    }
+    return await response.json();
   },
 
   /**
    * Get single log (GET /food-logs/:id)
    */
   findOne: async (id: string) => {
-    try {
-      const endpoint = API_CONFIG.ENDPOINTS.FOOD_LOGS.GET_BY_ID.replace(
-        ":id",
-        id
-      );
-      const response = await fetch(getApiUrl(endpoint), {
-        method: "GET",
-        headers: getAuthHeaders(),
-      });
+    const endpoint = API_CONFIG.ENDPOINTS.FOOD_LOGS.GET_BY_ID.replace(
+      ":id",
+      id
+    );
+    const response = await fetchWithRetry(getApiUrl(endpoint), {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
 
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to get food log");
     }
+    return await response.json();
   },
 
   /**
    * Update log (PATCH /food-logs/:id)
    */
   update: async (id: string, data: UpdateFoodLogDto) => {
-    try {
-      const endpoint = API_CONFIG.ENDPOINTS.FOOD_LOGS.PATCH_BY_ID.replace(
-        ":id",
-        id
-      );
-      const response = await fetch(getApiUrl(endpoint), {
-        method: "PATCH",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data),
-      });
+    const endpoint = API_CONFIG.ENDPOINTS.FOOD_LOGS.PATCH_BY_ID.replace(
+      ":id",
+      id
+    );
+    const response = await fetchWithRetry(getApiUrl(endpoint), {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
 
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to update food log");
     }
+    return await response.json();
   },
 
   /**
    * Remove log (DELETE /food-logs/:id)
    */
   remove: async (id: string) => {
-    try {
-      const endpoint = API_CONFIG.ENDPOINTS.FOOD_LOGS.DELETE_BY_ID.replace(
-        ":id",
-        id
-      );
-      const response = await fetch(getApiUrl(endpoint), {
-        method: "DELETE",
-        headers: getAuthHeaders(),
-      });
+    const endpoint = API_CONFIG.ENDPOINTS.FOOD_LOGS.DELETE_BY_ID.replace(
+      ":id",
+      id
+    );
+    const response = await fetchWithRetry(getApiUrl(endpoint), {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+    });
 
-      if (!response.ok) throw await response.json();
-      return await response.json();
-    } catch (error) {
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Failed to delete food log");
     }
+    return await response.json();
   },
 };

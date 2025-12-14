@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import nutritionAnalyzerService from "@/services/nutrition-analyzer.service";
 import { NutritionAnalysisResponse } from "@/types/nutritionAnalyzer";
 
@@ -11,9 +11,16 @@ export const useNutritionAnalysis = () => {
   const [history, setHistory] = useState<NutritionAnalysisResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Create new analysis
   const createAnalysis = useCallback(async (foodLogId: string) => {
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     setLoading(true);
     setError(null);
     try {
@@ -26,13 +33,20 @@ export const useNutritionAnalysis = () => {
 
         // Optimistically update history (add new one to top)
         setHistory((prev) => {
-          const newHistory = [data, ...prev];
+          // Avoid duplicates
+          const filtered = prev.filter(
+            (item) => item.foodLogId !== data.foodLogId
+          );
+          const newHistory = [data, ...filtered];
           localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
           return newHistory;
         });
       }
       return data;
     } catch (err) {
+      if ((err as Error).name === "AbortError") {
+        return null;
+      }
       const error =
         err instanceof Error
           ? err
@@ -51,14 +65,10 @@ export const useNutritionAnalysis = () => {
       setLoading(true);
       setError(null);
       try {
-        // First check if it's already in history to save network call (Optional optimization)
+        // Check cache first
         const cachedItem = history.find((item) => item.foodLogId === foodLogId);
         if (cachedItem) {
           setCurrentAnalysis(cachedItem);
-          localStorage.setItem(
-            ANALYSIS_STORAGE_KEY,
-            JSON.stringify(cachedItem)
-          );
           setLoading(false);
           return cachedItem;
         }
@@ -69,6 +79,19 @@ export const useNutritionAnalysis = () => {
         if (data) {
           setCurrentAnalysis(data);
           localStorage.setItem(ANALYSIS_STORAGE_KEY, JSON.stringify(data));
+
+          // Add to history if not exists
+          setHistory((prev) => {
+            if (!prev.find((item) => item.foodLogId === data.foodLogId)) {
+              const newHistory = [data, ...prev];
+              localStorage.setItem(
+                HISTORY_STORAGE_KEY,
+                JSON.stringify(newHistory)
+              );
+              return newHistory;
+            }
+            return prev;
+          });
         }
         return data;
       } catch (err) {
@@ -76,7 +99,8 @@ export const useNutritionAnalysis = () => {
           err instanceof Error ? err : new Error("Failed to fetch analysis");
         setError(error);
         console.error("Failed to fetch analysis:", err);
-        throw error;
+        // Don't throw - return null so the caller can handle gracefully
+        return null;
       } finally {
         setLoading(false);
       }
@@ -102,7 +126,7 @@ export const useNutritionAnalysis = () => {
           : new Error("Failed to fetch analysis history");
       setError(error);
       console.error("Failed to fetch analysis history:", err);
-      throw error;
+      return [];
     } finally {
       setLoading(false);
     }
@@ -135,6 +159,11 @@ export const useNutritionAnalysis = () => {
     localStorage.removeItem(ANALYSIS_STORAGE_KEY);
   }, []);
 
+  // Clear error
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   return {
     currentAnalysis,
     history,
@@ -145,5 +174,6 @@ export const useNutritionAnalysis = () => {
     fetchHistory,
     loadFromCache,
     clearCurrentAnalysis,
+    clearError,
   };
 };

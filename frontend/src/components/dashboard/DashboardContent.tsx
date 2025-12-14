@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AlertCircle } from "lucide-react";
 import { MatchResult, Meal } from "@/types";
 import { useUser } from "@/context";
@@ -94,23 +94,20 @@ const DashboardContent: React.FC = () => {
     useState<NutritionAnalysisResponse | null>(null);
   const [lastRawInput, setLastRawInput] = useState("");
   const [mealAnalyses, setMealAnalyses] = useState<
-    { mealId: string; analysis: NutritionAnalysisResponse }[]
-  >([]);
-  const [analysesApplied, setAnalysesApplied] = useState(false);
+    Map<string, NutritionAnalysisResponse>
+  >(new Map());
 
   const { fetchProfile } = useProfile();
+  const isMountedRef = useRef(true);
 
   const {
     currentAnalysis,
-    history,
-    loading,
-    error,
+    loading: analysisLoading,
     createAnalysis,
     fetchAnalysisById,
-    fetchHistory,
     loadFromCache,
-    clearCurrentAnalysis,
   } = useNutritionAnalysis();
+
   // Data hooks
   const {
     isLoading: isLoadingLogs,
@@ -118,119 +115,126 @@ const DashboardContent: React.FC = () => {
     error: logsError,
     refetch: refetchLogs,
   } = useFoodLogsList();
-  const { isLoading: isLoadingStreaks, data: streaksData } = useStreaks();
+  const {
+    isLoading: isLoadingStreaks,
+    data: streaksData,
+    refetch: refetchStreaks,
+  } = useStreaks();
   const { logFoodText, logFoodItem, isSubmitting, deleteLog, updateLog } =
     useFoodLogActions();
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchProfile().catch(console.error);
+    loadFromCache();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
+  // Transform logs to meals when data changes
   useEffect(() => {
-    if (logsData && Array.isArray(logsData)) {
-      setMeals(logsData.map(transformFoodLogToMeal));
-      setAnalysesApplied(false); // Reset when logs change
+    if (logsData && Array.isArray(logsData) && isMountedRef.current) {
+      const transformedMeals = logsData.map(transformFoodLogToMeal);
+      setMeals(transformedMeals);
     }
   }, [logsData]);
 
+  // Fetch analyses for meals - with debounce to prevent excessive calls
+  const fetchAnalysesForMeals = useCallback(
+    async (mealsList: Meal[]) => {
+      if (!isMountedRef.current || mealsList.length === 0) return;
+
+      const newAnalyses = new Map<string, NutritionAnalysisResponse>();
+
+      // Fetch in parallel but limit concurrency
+      const batchSize = 3;
+      for (let i = 0; i < mealsList.length; i += batchSize) {
+        const batch = mealsList.slice(i, i + batchSize);
+        const results = await Promise.allSettled(
+          batch.map(async (meal) => {
+            try {
+              const analysis = await fetchAnalysisById(meal.id);
+              if (analysis) {
+                return { mealId: meal.id, analysis };
+              }
+            } catch (err) {
+              console.warn(`Failed to fetch analysis for meal ${meal.id}`);
+            }
+            return null;
+          })
+        );
+
+        results.forEach((result) => {
+          if (result.status === "fulfilled" && result.value) {
+            newAnalyses.set(result.value.mealId, result.value.analysis);
+          }
+        });
+      }
+
+      if (isMountedRef.current) {
+        setMealAnalyses(newAnalyses);
+      }
+    },
+    [fetchAnalysisById]
+  );
+
+  // Fetch analyses when meals change
+  useEffect(() => {
+    if (meals.length > 0) {
+      fetchAnalysesForMeals(meals);
+    }
+  }, [meals.length]); // Only trigger when meal count changes
+
+  // Apply analyses to meals
+  const mealsWithAnalyses = React.useMemo(() => {
+    return meals.map((meal) => {
+      const analysis = mealAnalyses.get(meal.id);
+      if (analysis) {
+        return {
+          ...meal,
+          nutrition: {
+            ...meal.nutrition,
+            ...analysis.nutritionFacts,
+          },
+        };
+      }
+      return meal;
+    });
+  }, [meals, mealAnalyses]);
+
   // Computed values
-  const totalCals = meals.reduce(
+  const totalCals = mealsWithAnalyses.reduce(
     (acc, m) => acc + (m.nutrition.calories ?? 0),
     0
   );
-  const totalSodium = meals.filter((m) => m.nutrition.sodium === "High").length;
+  const totalSodium = mealsWithAnalyses.filter(
+    (m) => m.nutrition.sodium === "High"
+  ).length;
 
   // Handlers
   const handleOpenAddMeal = () => setCurrentStep("input");
-  useEffect(() => {
-    if (!analysesApplied && mealAnalyses.length > 0) {
-      setMeals((prevMeals) =>
-        prevMeals.map((meal) => {
-          const analysis = mealAnalyses.find(
-            (a) => a.mealId === meal.id
-          )?.analysis;
-          if (analysis) {
-            return {
-              ...meal,
-              nutrition: {
-                ...meal.nutrition,
-                ...analysis.nutritionFacts,
-              },
-            };
-          }
-          return meal;
-        })
-      );
-      setAnalysesApplied(true);
-    }
-  }, [mealAnalyses, analysesApplied]);
-  useEffect(() => {
-    const fetchAllAnalyses = async () => {
-      const analyses: {
-        mealId: string;
-        analysis: NutritionAnalysisResponse;
-      }[] = [];
-      for (const meal of meals) {
-        try {
-          const analysis = await fetchAnalysisById(meal.id);
-          if (analysis) {
-            analyses.push({ mealId: meal.id, analysis });
-          }
-        } catch (err) {
-          console.error(`Failed to fetch analysis for meal ${meal.id}:`, err);
-        }
-      }
-      setMealAnalyses(analyses);
-    };
-
-    if (meals.length > 0) {
-      fetchAllAnalyses();
-    }
-  }, [meals, fetchAnalysisById]);
-
-  // useEffect(() => {
-  //   if (mealAnalyses.length > 0) {
-  //     setMeals((prevMeals) =>
-  //       prevMeals.map((meal) => {
-  //         const analysis = mealAnalyses.find(
-  //           (a) => a.mealId === meal.id
-  //         )?.analysis;
-  //         if (analysis) {
-  //           return {
-  //             ...meal,
-  //             nutrition: {
-  //               ...meal.nutrition,
-  //               ...analysis.nutritionFacts, // Update nutrition dengan data analisis
-  //             },
-  //           };
-  //         }
-  //         return meal;
-  //       })
-  //     );
-  //   }
-  // }, [mealAnalyses]);
 
   const handleAnalyze = async (input: string) => {
     setIsProcessing(true);
     setLastRawInput(input);
-    const results = await matchFoods(input);
-    setMatchResults(results);
-    setIsProcessing(false);
-    setCurrentStep("verify");
+    try {
+      const results = await matchFoods(input);
+      setMatchResults(results);
+      setCurrentStep("verify");
+    } catch (err) {
+      console.error("Failed to match foods:", err);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  // Tambahkan handleEdit dan handleDelete
   const handleEdit = (meal: Meal) => {
-    // Placeholder: Implement edit logic, e.g., open edit modal
-    console.log("Edit meal:", meal);
-    // TODO: Open edit modal or navigate to edit page
-    // Contoh sederhana: prompt untuk text baru, lalu update
     const newText = prompt("Edit meal name:", meal.name);
     if (newText && newText !== meal.name) {
-      // Asumsikan update hanya text, sesuaikan dengan UpdateFoodLogDto
       updateLog(meal.id, { raw_text: newText } as any).then((result) => {
         if (result.success) {
-          refetchLogs(); // Refresh data setelah update
+          refetchLogs();
         } else {
           console.error("Failed to update meal:", result.error);
         }
@@ -241,10 +245,18 @@ const DashboardContent: React.FC = () => {
   const handleDelete = async (mealId: string) => {
     const result = await deleteLog(mealId);
     if (result.success) {
-      refetchLogs(); // Refresh data setelah delete
+      // Remove from local state immediately for better UX
+      setMeals((prev) => prev.filter((m) => m.id !== mealId));
+      setMealAnalyses((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(mealId);
+        return newMap;
+      });
+      // Then refetch to ensure sync
+      refetchLogs();
+      refetchStreaks();
     } else {
       console.error("Failed to delete meal:", result.error);
-      // TODO: Show error toast or alert
     }
   };
 
@@ -253,13 +265,18 @@ const DashboardContent: React.FC = () => {
     setCurrentStep("idle");
 
     try {
+      // Step 1: Create the food log
       const res = await logFoodText({ text: lastRawInput } as any);
       const logId = res?.data?.log_id;
 
-      // Debugging: Pastikan logId muncul di console browser
+      if (!logId) {
+        throw new Error("Failed to create food log - no log ID returned");
+      }
+
       console.log("LOG ID DARI BACKEND:", logId);
 
-      if (logId && verifiedFoods.length > 0) {
+      // Step 2: Create food log items
+      if (verifiedFoods.length > 0) {
         await Promise.all(
           verifiedFoods.map((v) => {
             const foodIdNum = Number(v.selectedFoodId);
@@ -274,7 +291,6 @@ const DashboardContent: React.FC = () => {
               unit: v.unit || "porsi",
             };
 
-            // Only include foodId if it's a valid number
             if (!isNaN(foodIdNum) && foodIdNum > 0) {
               payload.foodId = foodIdNum;
             }
@@ -284,12 +300,16 @@ const DashboardContent: React.FC = () => {
         );
       }
 
-      // Now run analysis after all items have been logged
+      // Step 3: Small delay to ensure DB consistency
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Step 4: Run analysis
       const analysis = await createAnalysis(logId);
       setAnalysisResult(analysis);
 
+      // Step 5: Create optimistic meal entry
       const newMeal: Meal = {
-        id: analysis?.foodLogId ?? String(logId ?? "unknown"),
+        id: analysis?.foodLogId ?? String(logId),
         name: lastRawInput,
         timestamp: new Date(),
         nutrition: {
@@ -308,13 +328,28 @@ const DashboardContent: React.FC = () => {
           cholesterol: analysis?.nutritionFacts.cholesterol || "0mg",
         },
       };
-      setMeals((prev) => [newMeal, ...prev]);
 
-      setIsProcessing(false);
+      // Add to local state immediately
+      setMeals((prev) => [newMeal, ...prev]);
+      if (analysis) {
+        setMealAnalyses((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(newMeal.id, analysis);
+          return newMap;
+        });
+      }
+
       setCurrentStep("result");
-      refetchLogs();
+
+      // Step 6: Refetch to ensure sync with backend
+      setTimeout(() => {
+        refetchLogs();
+        refetchStreaks();
+      }, 500);
     } catch (err) {
       console.error("Failed to log food:", err);
+      alert("Failed to save meal. Please try again.");
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -325,7 +360,7 @@ const DashboardContent: React.FC = () => {
     setCurrentStep("idle");
   };
 
-  if (isLoadingLogs) {
+  if (isLoadingLogs && meals.length === 0) {
     return (
       <div className="p-6 max-w-7xl mx-auto flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
@@ -336,14 +371,14 @@ const DashboardContent: React.FC = () => {
     );
   }
 
-  if (logsError) {
+  if (logsError && meals.length === 0) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <p className="text-red-600 dark:text-red-400">{logsError}</p>
           <button
-            onClick={refetchLogs}
+            onClick={() => refetchLogs()}
             className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
           >
             Coba Lagi
@@ -355,14 +390,11 @@ const DashboardContent: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-24 font-sans animate-fade-in">
-      {/* Greeting */}
       <GreetingHeader
-        // Karena user diambil langsung dari state awal, "User" hanya muncul jika localStorage kosong
         username={user?.username || "User"}
         onAddMeal={handleOpenAddMeal}
       />
 
-      {/* Stats Cards */}
       <StatsCards
         totalCalories={totalCals}
         totalHighSodium={totalSodium}
@@ -371,17 +403,15 @@ const DashboardContent: React.FC = () => {
         isLoadingStreaks={isLoadingStreaks}
       />
 
-      {/* Insight */}
       <DailyInsight />
 
-      {/* Meals Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in-up">
         <div className="lg:col-span-2">
           <MealHistory
-            meals={meals}
+            meals={mealsWithAnalyses}
             onAddMeal={handleOpenAddMeal}
-            onEdit={handleEdit} // Pass handleEdit
-            onDelete={handleDelete} // Pass handleDelete
+            onEdit={handleEdit}
+            onDelete={handleDelete}
             isDisabled={isSubmitting || isProcessing}
           />
         </div>
@@ -393,12 +423,11 @@ const DashboardContent: React.FC = () => {
               onClose={handleCloseResult}
             />
           ) : (
-            <NutritionBreakdown meals={meals} />
+            <NutritionBreakdown meals={mealsWithAnalyses} />
           )}
         </div>
       </div>
 
-      {/* Modals */}
       {currentStep === "input" && (
         <AddMealModal
           onAnalyze={handleAnalyze}

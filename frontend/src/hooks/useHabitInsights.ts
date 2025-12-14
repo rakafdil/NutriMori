@@ -9,12 +9,18 @@ import {
 import { AUTH_STORAGE_KEY } from "@/config/apiConfig";
 
 const CACHE_PREFIX = "habit_insights";
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const buildCacheKey = (
   period: HabitInsightsPeriod,
   startDate?: string,
   endDate?: string
 ) => `${CACHE_PREFIX}:${period}:${startDate || ""}:${endDate || ""}`;
+
+interface CacheEntry {
+  data: HabitInsightsResponse;
+  timestamp: number;
+}
 
 export const useHabitInsights = (
   initialPeriod: HabitInsightsPeriod = "weekly"
@@ -28,13 +34,18 @@ export const useHabitInsights = (
     endDate?: string;
   }>({});
 
-  // Prevent duplicate fetches
-  const isFetchingRef = useRef(false);
-  const hasFetchedRef = useRef(false);
+  const mountedRef = useRef(true);
+  const fetchIdRef = useRef(0);
 
   const clearAllLocal = useCallback(() => {
     if (typeof window === "undefined") return;
-    localStorage.clear();
+    // Only clear habit insights cache, not all localStorage
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith(CACHE_PREFIX)) {
+        localStorage.removeItem(key);
+      }
+    });
+    setData(null);
   }, []);
 
   useEffect(() => {
@@ -54,10 +65,7 @@ export const useHabitInsights = (
 
   const fetchInsights = useCallback(
     async (skipCache = false) => {
-      // Prevent duplicate fetches
-      if (isFetchingRef.current) return;
-
-      isFetchingRef.current = true;
+      const currentFetchId = ++fetchIdRef.current;
       setIsLoading(true);
       setError(null);
 
@@ -73,11 +81,17 @@ export const useHabitInsights = (
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
           try {
-            const parsed = JSON.parse(cached) as HabitInsightsResponse;
-            setData(parsed);
-            setIsLoading(false);
-            isFetchingRef.current = false;
-            return;
+            const entry: CacheEntry = JSON.parse(cached);
+            // Check if cache is still valid
+            if (Date.now() - entry.timestamp < CACHE_TTL) {
+              if (mountedRef.current && currentFetchId === fetchIdRef.current) {
+                setData(entry.data);
+                setIsLoading(false);
+              }
+              return;
+            } else {
+              localStorage.removeItem(cacheKey);
+            }
           } catch {
             localStorage.removeItem(cacheKey);
           }
@@ -90,17 +104,27 @@ export const useHabitInsights = (
           ...customDateRange,
         };
         const response = await habitInsightsService.getHabitInsights(params);
-        setData(response);
-        if (typeof window !== "undefined") {
-          localStorage.setItem(cacheKey, JSON.stringify(response));
+
+        if (mountedRef.current && currentFetchId === fetchIdRef.current) {
+          setData(response);
+          if (typeof window !== "undefined") {
+            const cacheEntry: CacheEntry = {
+              data: response,
+              timestamp: Date.now(),
+            };
+            localStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
+          }
         }
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Gagal memuat habit insights"
-        );
+        if (mountedRef.current && currentFetchId === fetchIdRef.current) {
+          setError(
+            err instanceof Error ? err.message : "Gagal memuat habit insights"
+          );
+        }
       } finally {
-        setIsLoading(false);
-        isFetchingRef.current = false;
+        if (mountedRef.current && currentFetchId === fetchIdRef.current) {
+          setIsLoading(false);
+        }
       }
     },
     [period, customDateRange]
@@ -121,17 +145,13 @@ export const useHabitInsights = (
     await fetchInsights(true);
   }, [period, customDateRange, fetchInsights]);
 
-  // Initial fetch on mount and when period changes
+  // Fetch on mount and when period changes
   useEffect(() => {
-    // Reset hasFetched when period changes
-    hasFetchedRef.current = false;
-  }, [period]);
-
-  useEffect(() => {
-    if (!hasFetchedRef.current) {
-      hasFetchedRef.current = true;
-      fetchInsights();
-    }
+    mountedRef.current = true;
+    fetchInsights();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchInsights]);
 
   return {

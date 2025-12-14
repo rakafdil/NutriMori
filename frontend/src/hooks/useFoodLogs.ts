@@ -1,18 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   FoodLogsService,
   CreateFoodLogDto,
   LogFoodInputDto,
   UpdateFoodLogDto,
   CreateFoodLogItemDto,
-} from "@/services/food-logs.service"; // Sesuaikan path service Anda
+} from "@/services/food-logs.service";
 
 // --- Tipe Data State ---
 interface FetchState<T> {
   data: T | null;
   isLoading: boolean;
   error: string | null;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 // ==========================================
@@ -26,15 +26,17 @@ export const useFoodLogsList = (
   startDate?: Date | string,
   endDate?: Date | string
 ) => {
-  const [state, setState] = useState<FetchState<any>>({
-    data: null,
-    isLoading: true,
-    error: null,
-    refetch: () => {},
-  });
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const fetchIdRef = useRef(0);
 
   const fetchData = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    const currentFetchId = ++fetchIdRef.current;
+    setIsLoading(true);
+    setError(null);
+
     try {
       const sDate =
         startDate instanceof Date ? startDate.toISOString() : startDate;
@@ -44,97 +46,111 @@ export const useFoodLogsList = (
         startDate: sDate,
         endDate: eDate,
       });
-      setState({
-        data: result,
-        isLoading: false,
-        error: null,
-        refetch: fetchData,
-      });
+
+      // Only update if this is the latest fetch and component is mounted
+      if (mountedRef.current && currentFetchId === fetchIdRef.current) {
+        setData(result);
+        setError(null);
+      }
     } catch (err: any) {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: err.message || "Gagal mengambil data",
-      }));
+      if (mountedRef.current && currentFetchId === fetchIdRef.current) {
+        setError(err.message || "Gagal mengambil data");
+      }
+    } finally {
+      if (mountedRef.current && currentFetchId === fetchIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [startDate, endDate]);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchData();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchData]);
 
-  return state;
+  return { data, isLoading, error, refetch: fetchData };
 };
 
 /**
  * Hook untuk mengambil Summary Harian (Nutrisi, Kalori, dll)
  */
 export const useDailySummary = (date?: Date | string) => {
-  const [state, setState] = useState<FetchState<any>>({
-    data: null,
-    isLoading: true,
-    error: null,
-    refetch: () => {},
-  });
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchData = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    setIsLoading(true);
+    setError(null);
     try {
       const qDate = date instanceof Date ? date.toISOString() : date;
       const result = await FoodLogsService.getDailySummary(qDate);
-      setState({
-        data: result,
-        isLoading: false,
-        error: null,
-        refetch: fetchData,
-      });
+      if (mountedRef.current) {
+        setData(result);
+      }
     } catch (err: any) {
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: err.message || "Gagal mengambil summary harian",
-      }));
+      if (mountedRef.current) {
+        setError(err.message || "Gagal mengambil summary harian");
+      }
+    } finally {
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [date]);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchData();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchData]);
 
-  return state;
+  return { data, isLoading, error, refetch: fetchData };
 };
 
 /**
  * Hook untuk mengambil Streaks user
  */
 export const useStreaks = () => {
-  const [state, setState] = useState<FetchState<any>>({
-    data: null,
-    isLoading: true,
-    error: null,
-    refetch: () => {},
-  });
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
   const fetchData = useCallback(async () => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    setIsLoading(true);
+    setError(null);
     try {
       const result = await FoodLogsService.getStreaks();
-      setState({
-        data: result,
-        isLoading: false,
-        error: null,
-        refetch: fetchData,
-      });
+      if (mountedRef.current) {
+        setData(result);
+      }
     } catch (err: any) {
-      setState((prev) => ({ ...prev, isLoading: false, error: err.message }));
+      if (mountedRef.current) {
+        setError(err.message);
+      }
+    } finally {
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchData();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [fetchData]);
 
-  return state;
+  return { data, isLoading, error, refetch: fetchData };
 };
 
 // ==========================================
@@ -143,13 +159,11 @@ export const useStreaks = () => {
 
 /**
  * Hook untuk melakukan Create, Update, Delete Log
- * Mengembalikan status loading terpisah (isSubmitting) agar UI tidak freeze
  */
 export const useFoodLogActions = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Helper untuk reset error sebelum request
   const startAction = () => {
     setIsSubmitting(true);
     setError(null);
@@ -200,7 +214,6 @@ export const useFoodLogActions = () => {
       );
     }
 
-    // Add mealType to input
     const updatedInput = { ...input, mealType };
 
     startAction();
@@ -219,13 +232,11 @@ export const useFoodLogActions = () => {
     startAction();
     try {
       const result = await FoodLogsService.logFoodItem(input);
-      console.log("SUCCESS FOOD ITEM:", result);
       setIsSubmitting(false);
       return { success: true, data: result };
     } catch (err: any) {
       setIsSubmitting(false);
-      setError(err.message || "Gagal logging food");
-      console.log("ERROR FOOD ITEM:", err.message);
+      setError(err.message || "Gagal logging food item");
       return { success: false, error: err };
     }
   };
@@ -256,6 +267,8 @@ export const useFoodLogActions = () => {
     }
   };
 
+  const clearError = () => setError(null);
+
   return {
     createLog,
     logFoodText,
@@ -264,5 +277,6 @@ export const useFoodLogActions = () => {
     deleteLog,
     isSubmitting,
     error,
+    clearError,
   };
 };

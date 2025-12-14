@@ -274,9 +274,7 @@ class AuthService {
       }).catch(console.error);
     }
 
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(REFRESH_STORAGE_KEY);
-    localStorage.removeItem(USER_STORAGE_KEY);
+    localStorage.clear();
     window.location.href = "/auth";
   }
 
