@@ -76,3 +76,40 @@ export interface ApiResponse<T> {
 export interface CacheInvalidateParams {
   period?: HabitInsightsPeriod;
 }
+export interface CalorieDataPoint {
+  day: string;
+  cal: number;
+}
+
+export interface MacroDataPoint {
+  name: string;
+  value: number;
+}
+
+export interface MealSlot {
+  slot: number;
+  calories: number;
+}
+
+export interface DayMealTiming {
+  day: number;
+  dayName: string;
+  slots: MealSlot[];
+}
+
+export interface AIPatternDiscovery {
+  title?: string;
+  description: string;
+  highlights?: string[];
+}
+
+export interface AnalyticsData {
+  startDate?: string;
+  endDate?: string;
+  calorieIntake?: CalorieDataPoint[];
+  macronutrients?: MacroDataPoint[];
+  mealTiming?: DayMealTiming[];
+  aiPatternDiscovery?: AIPatternDiscovery;
+  dietScore?: number | string;
+  nutritionHistory?: any[];
+}

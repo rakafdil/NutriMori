@@ -88,13 +88,6 @@ const StatsCards: React.FC<StatsCardsProps> = ({
       </div>
 
       <div className="bg-gradient-to-br from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-800 p-5 rounded-2xl shadow-lg text-white flex flex-col gap-4 h-32 justify-center hover:scale-105 transition-all duration-300 cursor-pointer group">
-        <div className="flex items-center gap-2">
-          <Zap
-            className={`w-4 h-4 text-yellow-300 ${
-              currentStreak >= 7 ? "animate-bounce" : ""
-            }`}
-          />
-        </div>
         <p
           className={`text-2xl font-medium leading-tight group-hover:text-yellow-100 transition-colors duration-300 ${
             currentStreak >= 7 ? "animate-pulse" : ""
