@@ -20,7 +20,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({
   isLoadingStreaks,
 }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* Kalori */}
       <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-emerald-100 dark:border-gray-700 flex flex-col justify-between h-32 relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-bl-full -mr-2 -mt-2" />
@@ -43,7 +43,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({
       </div>
 
       {/* Sodium */}
-      <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-orange-100 dark:border-gray-700 flex flex-col justify-between h-32">
+      {/* <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-orange-100 dark:border-gray-700 flex flex-col justify-between h-32">
         <div className="flex items-start justify-between">
           <div className="p-2 bg-orange-100 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400 rounded-lg">
             <Droplets className="w-5 h-5" />
@@ -60,7 +60,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({
             {totalHighSodium > 1 ? "High" : "Normal"}
           </p>
         </div>
-      </div>
+      </div> */}
 
       {/* Streaks */}
       <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-blue-100 dark:border-gray-700 flex flex-col justify-between h-32">
@@ -87,15 +87,12 @@ const StatsCards: React.FC<StatsCardsProps> = ({
         </div>
       </div>
 
-      {/* AI Mood */}
-      <div className="bg-gradient-to-br from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-800 p-5 rounded-2xl shadow-lg text-white flex flex-col justify-between h-32">
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-yellow-300" />
-          <span className="text-xs font-bold uppercase tracking-wider text-indigo-100">
-            AI Mood
-          </span>
-        </div>
-        <p className="text-sm font-medium leading-tight">
+      <div className="bg-gradient-to-br from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-800 p-5 rounded-2xl shadow-lg text-white flex flex-col gap-4 h-32 justify-center hover:scale-105 transition-all duration-300 cursor-pointer group">
+        <p
+          className={`text-2xl font-medium leading-tight group-hover:text-yellow-100 transition-colors duration-300 ${
+            currentStreak >= 7 ? "animate-pulse" : ""
+          }`}
+        >
           {currentStreak >= 7
             ? "🔥 Amazing! 7+ hari berturut-turut!"
             : currentStreak >= 3

@@ -58,15 +58,6 @@ const Sidebar: React.FC = () => {
           );
         })}
       </nav>
-      <div className="p-4 border-t border-gray-100 dark:border-gray-800">
-        <div className="bg-gradient-to-r from-emerald-900 to-gray-900 dark:from-gray-800 dark:to-black rounded-2xl p-4 text-white">
-          <p className="text-xs font-medium opacity-70 mb-1">Pro Plan</p>
-          <p className="text-sm font-bold mb-3">Unlock AI Recipes</p>
-          <button className="w-full bg-white/20 hover:bg-white/30 text-xs py-2 rounded-lg transition">
-            Upgrade
-          </button>
-        </div>
-      </div>
     </aside>
   );
 };

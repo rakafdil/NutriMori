@@ -1,42 +1,56 @@
-# ai/core/daily_recommendation.py
-
 from typing import Dict, List
 
 
 def generate_daily_recommendation(
+    *,
     weekly_analysis: Dict,
     user_preferences: Dict,
-    food_catalog: List[Dict],
+    foods_from_supabase: List[Dict],
     top_k: int = 5
 ) -> Dict:
     """
-    FINAL DAILY RECOMMENDATION (BACKEND CONTRACT VERSION)
+    DAILY RECOMMENDATION (SUPABASE-AWARE VERSION)
 
-    - Input:
-        - weekly_analysis: hasil weekly analyzer (dipakai INTERNAL)
-        - user_preferences: { budget, likes, avoid }
-        - food_catalog: data makanan dari DB (harga + nutrisi)
-
-    - Output:
+    INPUT:
+    - weekly_analysis  : dari table nutrition_analysis / habit_insights_cache
+    - user_preferences : dari table user_preferences
         {
-          "recommendedFoods": [
-            { foodId, name, estimatedPrice, reason }
-          ]
+          "budget": 30000,
+          "avoid": ["gorengan"],
+          "likes": ["tahu", "tempe"]
         }
+    - foods_from_supabase : hasil JOIN backend dari Supabase, contoh:
+        SELECT
+          fi.id,
+          fi.name,
+          fp.price_estimated,
+          na.protein,
+          na.fat,
+          na.sugar
+        FROM food_items fi
+        JOIN food_prices fp ON ...
+        JOIN nutrition_analysis na ON ...
 
-    NOTE:
-    - weekly_analysis TIDAK dikirim ke FE
-    - budget hanya sebagai constraint
+    OUTPUT (FINAL CONTRACT):
+    {
+      "recommendedFoods": [
+        { foodId, name, estimatedPrice, reason }
+      ]
+    }
     """
 
-    # ---------- USER PREF ----------
+    # ===============================
+    # 1. USER PREFERENCES
+    # ===============================
     budget = user_preferences.get("budget")
-    likes = set(x.lower() for x in user_preferences.get("likes", []))
     avoid = set(x.lower() for x in user_preferences.get("avoid", []))
+    likes = set(x.lower() for x in user_preferences.get("likes", []))
 
-    # ---------- WEEKLY ISSUE (INTERNAL ONLY) ----------
+    # ===============================
+    # 2. WEEKLY ISSUE (INTERNAL ONLY)
+    # ===============================
     patterns = weekly_analysis.get("patterns", [])
-    recommendations_text = weekly_analysis.get("recommendations", [])
+    recommendations = weekly_analysis.get("recommendations", [])
 
     key_issue = None
     for p in patterns:
@@ -47,21 +61,26 @@ def generate_daily_recommendation(
     if not key_issue and patterns:
         key_issue = patterns[0].get("message")
 
-    main_recommendation = recommendations_text[0] if recommendations_text else None
+    main_reco_text = recommendations[0] if recommendations else None
 
-    # ---------- RULE-BASED SCORING ----------
-    scored_foods = []
+    # ===============================
+    # 3. SCORING FOOD (RULE-BASED)
+    # ===============================
+    scored = []
 
-    for food in food_catalog:
-        food_id = food.get("foodId")
+    for food in foods_from_supabase:
+        food_id = food.get("food_id")
         name = food.get("name", "")
-        price = food.get("estimatedPrice", food.get("price", 0))
-        nutrition = food.get("nutrition", {})
+        price = food.get("price_estimated", 0)
+
+        protein = food.get("protein", 0)
+        fat = food.get("fat", 0)
+        sugar = food.get("sugar", 0)
 
         if not name:
             continue
 
-        # Preferensi avoid
+        # Avoid preference
         if name.lower() in avoid:
             continue
 
@@ -69,57 +88,61 @@ def generate_daily_recommendation(
         if budget and price > budget:
             continue
 
-        protein = nutrition.get("Protein", 0)
-        fat = nutrition.get("Lemak Total", nutrition.get("Lemak", 0))
-        sugar = nutrition.get("Gula", 0)
-
         score = 0
 
-        # Fokus issue utama
+        # Focus weekly issue
         if key_issue and "protein" in key_issue.lower():
             if protein >= 8:
                 score += 2
             else:
                 score -= 1
 
-        # Penalti makanan buruk
+        # Penalize unhealthy
         if fat >= 15:
             score -= 0.5
         if sugar >= 15:
             score -= 0.5
 
-        # Preferensi user
-        if likes and any(lk in name.lower() for lk in likes):
+        # User likes
+        if likes and any(l in name.lower() for l in likes):
             score += 0.5
 
-        # Harga murah = bonus
-        score += max(0, 1 - (price / max(budget or price, 1)))
+        # Cheap food bonus
+        if budget:
+            score += max(0, 1 - (price / budget))
 
-        scored_foods.append({
+        scored.append({
             "foodId": food_id,
             "name": name,
-            "estimatedPrice": round(price, 0),
+            "estimatedPrice": round(price),
             "score": score
         })
 
-    # ---------- SORT & PICK ----------
-    scored_foods.sort(key=lambda x: x["score"], reverse=True)
-    top_foods = scored_foods[:top_k]
+    # ===============================
+    # 4. SORT & PICK TOP
+    # ===============================
+    scored.sort(key=lambda x: x["score"], reverse=True)
+    top_foods = scored[:top_k]
 
-    # ---------- FINAL OUTPUT ----------
-    recommended_foods = []
+    # ===============================
+    # 5. FINAL OUTPUT
+    # ===============================
+    recommended = []
+
     for f in top_foods:
         reason_parts = []
 
         if key_issue:
             reason_parts.append(key_issue.rstrip("."))
 
-        if main_recommendation:
-            reason_parts.append(main_recommendation.rstrip("."))
+        if main_reco_text:
+            reason_parts.append(main_reco_text.rstrip("."))
 
-        reason_parts.append("Dipilih karena harga terjangkau dan sesuai preferensi kamu.")
+        reason_parts.append(
+            "Dipilih karena harga terjangkau dan sesuai preferensi kamu"
+        )
 
-        recommended_foods.append({
+        recommended.append({
             "foodId": f["foodId"],
             "name": f["name"],
             "estimatedPrice": f["estimatedPrice"],
@@ -127,5 +150,5 @@ def generate_daily_recommendation(
         })
 
     return {
-        "recommendedFoods": recommended_foods
+        "recommendedFoods": recommended
     }

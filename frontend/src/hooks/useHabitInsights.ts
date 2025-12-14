@@ -1,71 +1,138 @@
-import { useState, useEffect, useCallback } from "react";
+// hooks/useHabitInsights.ts
+import { useState, useEffect, useCallback, useRef } from "react";
 import { habitInsightsService } from "@/services/habit-insight.service";
 import {
-  HabitInsightsParams,
   HabitInsightsResponse,
   HabitInsightsPeriod,
+  HabitInsightsQueryParams,
 } from "@/types/habitInsights";
+import { AUTH_STORAGE_KEY } from "@/config/apiConfig";
 
-interface UseHabitInsightsOptions {
-  initialPeriod?: HabitInsightsPeriod;
-  startDate?: string;
-  endDate?: string;
-}
+const CACHE_PREFIX = "habit_insights";
 
-interface UseHabitInsightsReturn {
-  data: HabitInsightsResponse["data"] | null;
-  isLoading: boolean;
-  error: string | null;
-  period: HabitInsightsPeriod;
-  setPeriod: (period: HabitInsightsPeriod) => void;
-  setDateRange: (startDate: string, endDate: string) => void;
-  refetch: () => Promise<void>;
-}
+const buildCacheKey = (
+  period: HabitInsightsPeriod,
+  startDate?: string,
+  endDate?: string
+) => `${CACHE_PREFIX}:${period}:${startDate || ""}:${endDate || ""}`;
 
 export const useHabitInsights = (
-  options: UseHabitInsightsOptions = {}
-): UseHabitInsightsReturn => {
-  const { initialPeriod = "weekly", startDate, endDate } = options;
-
-  const [data, setData] = useState<HabitInsightsResponse["data"] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  initialPeriod: HabitInsightsPeriod = "weekly"
+) => {
+  const [data, setData] = useState<HabitInsightsResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<HabitInsightsPeriod>(initialPeriod);
-  const [dateRange, setDateRangeState] = useState<{
+  const [customDateRange, setCustomDateRange] = useState<{
     startDate?: string;
     endDate?: string;
-  }>({ startDate, endDate });
+  }>({});
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  // Prevent duplicate fetches
+  const isFetchingRef = useRef(false);
+  const hasFetchedRef = useRef(false);
 
-    try {
-      const params: HabitInsightsParams = {
-        period,
-        ...dateRange,
-      };
-
-      const response = await habitInsightsService.getHabitInsights(params);
-      if (response.statusCode) {
-        setData(response.data);
-      } else {
-        setError(response.message || "Failed to fetch habit insights");
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [period, dateRange]);
+  const clearAllLocal = useCallback(() => {
+    if (typeof window === "undefined") return;
+    localStorage.clear();
+  }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (typeof window === "undefined") return;
+    // Clear if already logged out on mount
+    if (!localStorage.getItem(AUTH_STORAGE_KEY)) {
+      clearAllLocal();
+    }
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === AUTH_STORAGE_KEY && !e.newValue) {
+        clearAllLocal();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [clearAllLocal]);
 
-  const setDateRange = (startDate: string, endDate: string) => {
-    setDateRangeState({ startDate, endDate });
-  };
+  const fetchInsights = useCallback(
+    async (skipCache = false) => {
+      // Prevent duplicate fetches
+      if (isFetchingRef.current) return;
+
+      isFetchingRef.current = true;
+      setIsLoading(true);
+      setError(null);
+
+      const normalizedPeriod = period.toLowerCase() as HabitInsightsPeriod;
+      const cacheKey = buildCacheKey(
+        normalizedPeriod,
+        customDateRange.startDate,
+        customDateRange.endDate
+      );
+
+      // Try cache first (unless skipCache is true)
+      if (!skipCache && typeof window !== "undefined") {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached) as HabitInsightsResponse;
+            setData(parsed);
+            setIsLoading(false);
+            isFetchingRef.current = false;
+            return;
+          } catch {
+            localStorage.removeItem(cacheKey);
+          }
+        }
+      }
+
+      try {
+        const params: HabitInsightsQueryParams = {
+          period: normalizedPeriod,
+          ...customDateRange,
+        };
+        const response = await habitInsightsService.getHabitInsights(params);
+        setData(response);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(cacheKey, JSON.stringify(response));
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Gagal memuat habit insights"
+        );
+      } finally {
+        setIsLoading(false);
+        isFetchingRef.current = false;
+      }
+    },
+    [period, customDateRange]
+  );
+
+  const refreshInsights = useCallback(async () => {
+    const normalizedPeriod = period.toLowerCase() as HabitInsightsPeriod;
+    const cacheKey = buildCacheKey(
+      normalizedPeriod,
+      customDateRange.startDate,
+      customDateRange.endDate
+    );
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(cacheKey);
+    }
+
+    await fetchInsights(true);
+  }, [period, customDateRange, fetchInsights]);
+
+  // Initial fetch on mount and when period changes
+  useEffect(() => {
+    // Reset hasFetched when period changes
+    hasFetchedRef.current = false;
+  }, [period]);
+
+  useEffect(() => {
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchInsights();
+    }
+  }, [fetchInsights]);
 
   return {
     data,
@@ -73,7 +140,9 @@ export const useHabitInsights = (
     error,
     period,
     setPeriod,
-    setDateRange,
-    refetch: fetchData,
+    customDateRange,
+    setCustomDateRange,
+    refetch: () => fetchInsights(false),
+    refreshInsights,
   };
 };
