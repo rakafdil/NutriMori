@@ -107,7 +107,7 @@ const HeroSection: React.FC = () => {
           </div>
 
           {/* Abstract Floating UI Elements */}
-          <div className="mt-16 w-full max-w-5xl relative h-64 md:h-80 opacity-90">
+          <div className="mt-16 w-full max-w-5xl relative h-64 md:h-50 opacity-90">
             <div className="absolute left-1/2 top-0 transform -translate-x-1/2 w-full max-w-md bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-white/50 dark:border-gray-700 p-6 rounded-3xl shadow-2xl animate-fade-in-up transition-colors">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex gap-3">

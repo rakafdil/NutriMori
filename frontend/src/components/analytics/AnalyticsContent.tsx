@@ -20,8 +20,15 @@ import AnalyticsPeriodSelector from "./AnalyticsPeriodSelector";
 
 const AnalyticsContent: React.FC = () => {
   // Menggunakan hook useHabitInsights untuk mengambil data real dari database
-  const { data, isLoading, error, period, setPeriod, refreshInsights } =
-    useHabitInsights("weekly");
+  const {
+    data,
+    isLoading,
+    error,
+    period,
+    setPeriod,
+    refetch,
+    refreshInsights,
+  } = useHabitInsights("weekly");
 
   const handlePeriodChange = (newPeriod: HabitInsightsPeriod) =>
     setPeriod(newPeriod);

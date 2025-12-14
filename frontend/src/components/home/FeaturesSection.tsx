@@ -1,6 +1,14 @@
 "use client";
 import React from "react";
-import { Zap, Brain, TrendingUp, Camera, Clock, Shield } from "lucide-react";
+import {
+  Zap,
+  Brain,
+  TrendingUp,
+  Camera,
+  Clock,
+  Shield,
+  Database,
+} from "lucide-react";
 
 const FeaturesSection: React.FC = () => {
   const features = [
@@ -21,14 +29,15 @@ const FeaturesSection: React.FC = () => {
     {
       icon: <TrendingUp className="w-8 h-8" />,
       title: "Progress Tracking",
-      description: "Pantau progress kesehatan dengan grafik interaktif",
+      description:
+        "Pantau progress kesehatan kamu dengan rekomendasi yang harus dilakukan",
       color: "text-emerald-600 dark:text-emerald-400",
       bg: "bg-emerald-100 dark:bg-emerald-900/30",
     },
     {
-      icon: <Clock className="w-8 h-8" />,
-      title: "Meal Reminders",
-      description: "Notifikasi cerdas sesuai jadwal makanmu",
+      icon: <Database className="w-8 h-8" />,
+      title: "Food Database TKPI&USDA",
+      description: "Cari makanan kamu dengan data yang terpercaya",
       color: "text-orange-600 dark:text-orange-400",
       bg: "bg-orange-100 dark:bg-orange-900/30",
     },

@@ -85,9 +85,6 @@ const isValidUUID = (str: string): boolean => {
 const DashboardContent: React.FC = () => {
   const { user, isLoading: isUserLoading } = useUser();
   const [meals, setMeals] = useState<Meal[]>([]);
-  const [dailyInsight, setDailyInsight] = useState(
-    "Belum ada data makan hari ini. Yuk catat sarapanmu!"
-  );
 
   // Flow states
   const [currentStep, setCurrentStep] = useState<FlowStep>("idle");
@@ -375,7 +372,7 @@ const DashboardContent: React.FC = () => {
       />
 
       {/* Insight */}
-      <DailyInsight insight={dailyInsight} />
+      <DailyInsight />
 
       {/* Meals Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in-up">

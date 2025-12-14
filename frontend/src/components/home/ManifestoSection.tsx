@@ -1,8 +1,11 @@
 "use client";
 import React from "react";
 import { Heart, Target, Users, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const ManifestoSection: React.FC = () => {
+  const router = useRouter();
+
   return (
     <div className="min-h-screen w-full bg-white dark:bg-gray-950 flex flex-col relative overflow-hidden font-sans transition-colors duration-500 py-20">
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-200/20 dark:bg-emerald-900/10 rounded-full blur-3xl" />
@@ -81,13 +84,16 @@ const ManifestoSection: React.FC = () => {
           className="text-center bg-emerald-600 dark:bg-emerald-700 text-white p-12 rounded-3xl animate-fade-in"
           style={{ animationDelay: "0.4s" }}
         >
-          <h3 className="text-3xl font-bold mb-4">Join the Movement</h3>
+          <h3 className="text-3xl font-bold mb-4">Mulai Perjalanan Sehatmu</h3>
           <p className="text-lg mb-6 opacity-90">
-            Lebih dari 10,000+ pengguna sudah memulai perjalanan sehat mereka
-            bersama kami
+            NutriMori sedang dibangun untuk membantu kamu memahami pola makanmu
+            dengan cara yang lebih cerdas, personal, dan realistis.
           </p>
-          <button className="bg-white text-emerald-600 px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition shadow-lg">
-            Mulai Sekarang
+          <button
+            onClick={() => router.push("/auth")}
+            className="bg-white text-emerald-600 px-8 py-4 rounded-full font-bold hover:bg-gray-100 transition shadow-lg"
+          >
+            Mari Coba
           </button>
         </div>
       </div>
