@@ -163,10 +163,13 @@ export interface PatternDto {
 
 // ============ AI RESPONSE TYPES ============
 
+/**
+ * AI only returns summary and recommendations
+ * healthScore is calculated locally for token efficiency
+ */
 export interface AiInsightResult {
     summary: string;
     recommendations: string[];
-    healthScore?: number;
 }
 
 // ============ PATTERN RULE TYPES ============
