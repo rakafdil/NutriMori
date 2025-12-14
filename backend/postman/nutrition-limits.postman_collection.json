@@ -17,7 +17,7 @@
     "variable": [
         {
             "key": "base_url",
-            "value": "http://localhost:3001",
+            "value": "http://localhost:3001/api",
             "type": "string"
         },
         {
@@ -146,7 +146,80 @@
                             "status": "OK",
                             "code": 200,
                             "_postman_previewlanguage": "json",
-                            "body": "{\n  \"success\": false,\n  \"message\": \"Nutrition limits not set. Please update your preferences.\",\n  \"data\": null\n}"
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"max_calories\": 2000,\n    \"max_protein\": 50,\n    \"max_carbs\": 300,\n    \"max_fat\": 65,\n    \"max_sugar\": 50,\n    \"max_fiber\": 30,\n    \"max_sodium\": 2300,\n    \"max_cholesterol\": 300\n  },\n  \"message\": \"Using default limits. Update your preferences for personalized limits.\",\n  \"isDefault\": true\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "1.3 Get Default Limits (No Auth)",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/nutrition-limits/defaults",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "nutrition-limits",
+                                "defaults"
+                            ]
+                        },
+                        "description": "## Get Default Limits (Fallback)\n\nEndpoint ini TIDAK memerlukan autentikasi.\n\nGunakan sebagai fallback ketika:\n- User belum login\n- Gemini API habis/error\n- User belum set preferences\n\n### Query Parameters:\n- `gender` (optional): 'male' atau 'female' untuk default spesifik gender"
+                    },
+                    "response": [
+                        {
+                            "name": "Default - No Gender",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/nutrition-limits/defaults",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["nutrition-limits", "defaults"]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"max_calories\": 2000,\n    \"max_protein\": 50,\n    \"max_carbs\": 300,\n    \"max_fat\": 65,\n    \"max_sugar\": 50,\n    \"max_fiber\": 30,\n    \"max_sodium\": 2300,\n    \"max_cholesterol\": 300,\n    \"explanation\": \"Default values based on general dietary guidelines for healthy adults (2000 kcal reference)\"\n  },\n  \"explanation\": \"Default values based on general dietary guidelines for healthy adults (2000 kcal reference)\"\n}"
+                        },
+                        {
+                            "name": "Default - Male",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/nutrition-limits/defaults?gender=male",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["nutrition-limits", "defaults"],
+                                    "query": [{"key": "gender", "value": "male"}]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"max_calories\": 2500,\n    \"max_protein\": 56,\n    \"max_carbs\": 350,\n    \"max_fat\": 80,\n    \"max_sugar\": 62,\n    \"max_fiber\": 38,\n    \"max_sodium\": 2300,\n    \"max_cholesterol\": 300,\n    \"explanation\": \"Default values for adult male based on dietary guidelines\"\n  }\n}"
+                        },
+                        {
+                            "name": "Default - Female",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{base_url}}/nutrition-limits/defaults?gender=female",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["nutrition-limits", "defaults"],
+                                    "query": [{"key": "gender", "value": "female"}]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "json",
+                            "body": "{\n  \"success\": true,\n  \"data\": {\n    \"max_calories\": 2000,\n    \"max_protein\": 46,\n    \"max_carbs\": 275,\n    \"max_fat\": 65,\n    \"max_sugar\": 50,\n    \"max_fiber\": 25,\n    \"max_sodium\": 2300,\n    \"max_cholesterol\": 300,\n    \"explanation\": \"Default values for adult female based on dietary guidelines\"\n  }\n}"
                         }
                     ]
                 }
