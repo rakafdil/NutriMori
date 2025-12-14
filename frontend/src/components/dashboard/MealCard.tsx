@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Clock, Flame, Edit, Trash2, X } from "lucide-react";
 import { Meal } from "@/types";
+import ConfirmationModal from "./ConfirmationModal";
 
 interface MealCardProps {
   meal: Meal;
@@ -25,6 +26,12 @@ const formatTime = (date: Date): string => {
 const MealCard: React.FC<MealCardProps> = ({ meal, onEdit, onDelete }) => {
   const { id, name, timestamp, nutrition } = meal;
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isConfirmDelete, setIsConfirmDelete] = useState(false);
+
+  const handleConfirmDelete = () => {
+    handleDelete();
+    setIsConfirmDelete(false);
+  };
 
   const handleEdit = () => onEdit && onEdit(meal);
   const handleDelete = () => onDelete && onDelete(String(id));
@@ -75,19 +82,19 @@ const MealCard: React.FC<MealCardProps> = ({ meal, onEdit, onDelete }) => {
             <div className="grid grid-cols-3 gap-2 text-xs text-center">
               <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
                 <p className="font-semibold text-gray-700 dark:text-gray-300">
-                  {nutrition.protein}g
+                  {nutrition.protein}
                 </p>
                 <p className="text-gray-400">Protein</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
                 <p className="font-semibold text-gray-700 dark:text-gray-300">
-                  {nutrition.carbs}g
+                  {nutrition.carbs}
                 </p>
                 <p className="text-gray-400">Karbo</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
                 <p className="font-semibold text-gray-700 dark:text-gray-300">
-                  {nutrition.fat}g
+                  {nutrition.fat}
                 </p>
                 <p className="text-gray-400">Lemak</p>
               </div>
@@ -137,20 +144,17 @@ const MealCard: React.FC<MealCardProps> = ({ meal, onEdit, onDelete }) => {
                 <Trash2 className="w-4 h-4" /> Hapus
               </button>
             </div>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsFlipped(false);
-              }}
-              className="mt-3 p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
-              aria-label="Close actions"
-            >
-              <X className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </div>
+      {/* Hapus modal lama, ganti dengan ConfirmationModal */}
+      <ConfirmationModal
+        isOpen={isConfirmDelete}
+        onClose={() => setIsConfirmDelete(false)}
+        onConfirm={handleConfirmDelete}
+        title="Konfirmasi Hapus"
+        message={`Apakah Anda yakin ingin menghapus meal "${name}"?`}
+      />
     </div>
   );
 };
