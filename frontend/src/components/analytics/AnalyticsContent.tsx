@@ -26,11 +26,6 @@ const AnalyticsContent: React.FC = () => {
   // Use dummy data or real data based on flag
   const data = USE_REAL_DATA ? null : dummyAnalyticsData;
 
-  // Uncomment below to use real API
-  // const { data, isLoading, error, period, setPeriod } = useHabitInsights({
-  //   initialPeriod: "weekly",
-  // });
-
   const handlePeriodChange = (newPeriod: HabitInsightsPeriod) => {
     setPeriod(newPeriod);
   };

@@ -1,71 +1,59 @@
+// hooks/useHabitInsights.ts
 import { useState, useEffect, useCallback } from "react";
 import { habitInsightsService } from "@/services/habit-insight.service";
 import {
-  HabitInsightsParams,
   HabitInsightsResponse,
   HabitInsightsPeriod,
+  HabitInsightsQueryParams,
 } from "@/types/habitInsights";
 
-interface UseHabitInsightsOptions {
-  initialPeriod?: HabitInsightsPeriod;
-  startDate?: string;
-  endDate?: string;
-}
-
-interface UseHabitInsightsReturn {
-  data: HabitInsightsResponse["data"] | null;
-  isLoading: boolean;
-  error: string | null;
-  period: HabitInsightsPeriod;
-  setPeriod: (period: HabitInsightsPeriod) => void;
-  setDateRange: (startDate: string, endDate: string) => void;
-  refetch: () => Promise<void>;
-}
-
 export const useHabitInsights = (
-  options: UseHabitInsightsOptions = {}
-): UseHabitInsightsReturn => {
-  const { initialPeriod = "weekly", startDate, endDate } = options;
-
-  const [data, setData] = useState<HabitInsightsResponse["data"] | null>(null);
+  initialPeriod: HabitInsightsPeriod = "weekly"
+) => {
+  const [data, setData] = useState<HabitInsightsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<HabitInsightsPeriod>(initialPeriod);
-  const [dateRange, setDateRangeState] = useState<{
+  const [customDateRange, setCustomDateRange] = useState<{
     startDate?: string;
     endDate?: string;
-  }>({ startDate, endDate });
+  }>({});
 
-  const fetchData = useCallback(async () => {
+  const fetchInsights = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-
     try {
-      const params: HabitInsightsParams = {
+      const params: HabitInsightsQueryParams = {
         period,
-        ...dateRange,
+        ...customDateRange,
       };
-
       const response = await habitInsightsService.getHabitInsights(params);
-      if (response.statusCode) {
-        setData(response.data);
-      } else {
-        setError(response.message || "Failed to fetch habit insights");
-      }
+      setData(response);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(
+        err instanceof Error ? err.message : "Gagal memuat habit insights"
+      );
     } finally {
       setIsLoading(false);
     }
-  }, [period, dateRange]);
+  }, [period, customDateRange]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchInsights();
+  }, [fetchInsights]);
 
-  const setDateRange = (startDate: string, endDate: string) => {
-    setDateRangeState({ startDate, endDate });
-  };
+  const refreshInsights = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await habitInsightsService.refreshHabitInsights(period);
+      setData(response);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal refresh insights");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [period]);
 
   return {
     data,
@@ -73,7 +61,9 @@ export const useHabitInsights = (
     error,
     period,
     setPeriod,
-    setDateRange,
-    refetch: fetchData,
+    customDateRange,
+    setCustomDateRange,
+    refetch: fetchInsights,
+    refreshInsights,
   };
 };

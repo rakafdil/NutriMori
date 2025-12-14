@@ -266,6 +266,19 @@ export class FoodLogsService {
   async remove(userId: string, id: string): Promise<FoodLogWithRelations> {
     const log = await this.findOne(userId, id);
 
+    // Delete related nutrition analysis records first
+    const deleteAnalysisResult = await this.supabase
+      .from('nutrition_analysis')
+      .delete()
+      .eq('food_log_id', id);
+
+    if (deleteAnalysisResult.error) {
+      this.handleSupabaseError(
+        deleteAnalysisResult.error,
+        'Failed to delete related nutrition analysis',
+      );
+    }
+
     const result = await this.supabase
       .from('food_logs')
       .delete()
