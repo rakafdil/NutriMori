@@ -49,7 +49,6 @@ export class NutritionAnalysisController {
         @GetUser('id') userId: string,
         @Body() createDto: CreateNutritionAnalysisDto,
     ): Promise<NutritionAnalysisResponseDto> {
-        console.log('DEBUG Controller userId:', userId); // Tambahkan ini
         if (!userId) {
             throw new BadRequestException('User ID is missing from token');
         }
@@ -105,7 +104,6 @@ export class NutritionAnalysisController {
         @GetUser('id') userId: string,
         @Query('limit') limit?: number,
     ): Promise<NutritionAnalysisResponseDto[]> {
-        console.log(`DEBUG getUserHistory - User: ${userId}, Limit: ${limit} (${typeof limit})`);
         return this.nutritionAnalysisService.getUserAnalysisHistory(
             userId,
             limit || 10,

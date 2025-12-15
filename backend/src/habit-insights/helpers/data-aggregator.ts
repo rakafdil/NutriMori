@@ -80,6 +80,9 @@ export class DataAggregator {
      * Calculate nutritional totals from nutrition_analysis records
      */
     private static calculateNutritionTotals(records: NutritionAnalysisRecord[]): NutritionTotals {
+        // Helper to round to 2 decimal places to avoid floating point precision issues
+        const roundTo2 = (val: number) => Math.round(val * 100) / 100;
+
         const totals: NutritionTotals = {
             totalCalories: 0,
             totalProtein: 0,
@@ -101,6 +104,16 @@ export class DataAggregator {
             totals.totalSodium += Number(record.total_sodium) || 0;
             totals.totalCholesterol += Number(record.total_cholesterol) || 0;
         }
+
+        // Round all totals to avoid floating point precision issues
+        totals.totalCalories = roundTo2(totals.totalCalories);
+        totals.totalProtein = roundTo2(totals.totalProtein);
+        totals.totalCarbs = roundTo2(totals.totalCarbs);
+        totals.totalFat = roundTo2(totals.totalFat);
+        totals.totalFiber = roundTo2(totals.totalFiber);
+        totals.totalSugar = roundTo2(totals.totalSugar);
+        totals.totalSodium = roundTo2(totals.totalSodium);
+        totals.totalCholesterol = roundTo2(totals.totalCholesterol);
 
         return totals;
     }
@@ -186,6 +199,9 @@ export class DataAggregator {
     }
 
     private static calculateTotals(logs: FoodLogWithItems[]): NutritionTotals {
+        // Helper to round to 2 decimal places to avoid floating point precision issues
+        const roundTo2 = (val: number) => Math.round(val * 100) / 100;
+
         const totals: NutritionTotals = {
             totalCalories: 0,
             totalProtein: 0,
@@ -214,6 +230,16 @@ export class DataAggregator {
                 totals.totalCholesterol += food.cholesterol || 0;
             }
         }
+
+        // Round all totals to avoid floating point precision issues
+        totals.totalCalories = roundTo2(totals.totalCalories);
+        totals.totalProtein = roundTo2(totals.totalProtein);
+        totals.totalCarbs = roundTo2(totals.totalCarbs);
+        totals.totalFat = roundTo2(totals.totalFat);
+        totals.totalFiber = roundTo2(totals.totalFiber);
+        totals.totalSugar = roundTo2(totals.totalSugar);
+        totals.totalSodium = roundTo2(totals.totalSodium);
+        totals.totalCholesterol = roundTo2(totals.totalCholesterol);
 
         return totals;
     }
