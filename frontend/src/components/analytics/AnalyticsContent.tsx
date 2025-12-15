@@ -1,21 +1,21 @@
 "use client";
-import React from "react";
-import {
-  Loader2,
-  Calendar,
-  Flame,
-  UtensilsCrossed,
-  HeartPulse,
-  CheckCircle2,
-  AlertCircle,
-  Info,
-  Lightbulb,
-  TrendingUp,
-  Sparkles,
-  RefreshCw,
-} from "lucide-react";
-import { HabitInsightsPeriod } from "@/types/habitInsights";
 import { useHabitInsights } from "@/hooks/useHabitInsights";
+import { HabitInsightsPeriod } from "@/types/habitInsights";
+import {
+    AlertCircle,
+    Calendar,
+    CheckCircle2,
+    Flame,
+    HeartPulse,
+    Info,
+    Lightbulb,
+    Loader2,
+    RefreshCw,
+    Sparkles,
+    TrendingUp,
+    UtensilsCrossed,
+} from "lucide-react";
+import React from "react";
 import AnalyticsPeriodSelector from "./AnalyticsPeriodSelector";
 
 const AnalyticsContent: React.FC = () => {
@@ -169,7 +169,7 @@ const AnalyticsContent: React.FC = () => {
             </span>
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">
-            {averageCalories}{" "}
+            {Math.round(averageCalories)}{" "}
             <span className="text-sm font-normal text-gray-400">kkal</span>
           </p>
         </div>

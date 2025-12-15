@@ -1,6 +1,6 @@
 "use client";
-import React from "react";
 import { Meal } from "@/types";
+import React from "react";
 
 interface NutritionBreakdownProps {
   meals: Meal[];
@@ -15,6 +15,9 @@ const parseNumeric = (v: any): number => {
   }
   return 0;
 };
+
+// Helper to round numbers to avoid floating point precision issues
+const roundTo2 = (val: number): number => Math.round(val * 100) / 100;
 
 const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
   const totalCalories = meals.reduce(
@@ -58,7 +61,7 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">Calories</span>
             <span className="font-bold text-gray-800 dark:text-gray-200">
-              {totalCalories} kcal
+              {roundTo2(totalCalories)} kcal
             </span>
           </div>
           <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -75,7 +78,7 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">Protein</span>
             <span className="font-bold text-gray-800 dark:text-gray-200">
-              {totalProtein}g
+              {roundTo2(totalProtein)}g
             </span>
           </div>
           <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -90,7 +93,7 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">Carbs</span>
             <span className="font-bold text-gray-800 dark:text-gray-200">
-              {totalCarbs}g
+              {roundTo2(totalCarbs)}g
             </span>
           </div>
           <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -105,7 +108,7 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
           <div className="flex justify-between text-sm">
             <span className="text-gray-500 dark:text-gray-400">Fat</span>
             <span className="font-bold text-gray-800 dark:text-gray-200">
-              {totalFats}g
+              {roundTo2(totalFats)}g
             </span>
           </div>
           <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -121,7 +124,7 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
             <div className="flex justify-between text-sm">
               <span className="text-gray-500 dark:text-gray-400">Fiber</span>
               <span className="font-bold text-gray-800 dark:text-gray-200">
-                {totalFiber}g
+                {roundTo2(totalFiber)}g
               </span>
             </div>
             <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -138,7 +141,7 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
             <div className="flex justify-between text-sm">
               <span className="text-gray-500 dark:text-gray-400">Sugar</span>
               <span className="font-bold text-gray-800 dark:text-gray-200">
-                {totalSugar}g
+                {roundTo2(totalSugar)}g
               </span>
             </div>
             <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">

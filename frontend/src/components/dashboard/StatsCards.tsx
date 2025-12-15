@@ -1,6 +1,6 @@
 "use client";
+import { Flame, TrendingUp } from "lucide-react";
 import React from "react";
-import { Flame, Droplets, AlertCircle, Zap, TrendingUp } from "lucide-react";
 
 interface StatsCardsProps {
   totalCalories: number;
@@ -34,7 +34,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({
             Kalori Hari Ini
           </p>
           <p className="text-2xl font-bold text-gray-800 dark:text-white">
-            {totalCalories}{" "}
+            {Math.round(totalCalories)}{" "}
             <span className="text-sm font-normal text-gray-400">
               / {caloriesTarget}
             </span>
