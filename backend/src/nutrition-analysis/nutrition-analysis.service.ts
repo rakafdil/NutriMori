@@ -835,18 +835,21 @@ export class NutritionAnalysisService {
     const createdAt = data?.created_at ? new Date(data.created_at) : new Date();
     const updatedAt = data?.updated_at ? new Date(data.updated_at) : undefined;
 
+    // Round all nutrition values to 2 decimal places to avoid floating point precision issues
+    const roundTo2 = (val: number) => Math.round(val * 100) / 100;
+
     const response = {
       analysisId: data.id,
       foodLogId: data.food_log_id,
       nutritionFacts: {
-        calories: n.calories,
-        protein: `${n.protein}g`,
-        carbs: `${n.carbs}g`,
-        fat: `${n.fat}g`,
-        sugar: `${n.sugar}g`,
-        fiber: n.fiber ? `${n.fiber}g` : undefined,
-        sodium: n.sodium ? `${n.sodium}mg` : undefined,
-        cholesterol: n.cholesterol ? `${n.cholesterol}mg` : undefined,
+        calories: roundTo2(n.calories),
+        protein: `${roundTo2(n.protein)}g`,
+        carbs: `${roundTo2(n.carbs)}g`,
+        fat: `${roundTo2(n.fat)}g`,
+        sugar: `${roundTo2(n.sugar)}g`,
+        fiber: n.fiber ? `${roundTo2(n.fiber)}g` : undefined,
+        sodium: n.sodium ? `${roundTo2(n.sodium)}mg` : undefined,
+        cholesterol: n.cholesterol ? `${roundTo2(n.cholesterol)}mg` : undefined,
       },
       macroRatio,
       micronutrients: micro,

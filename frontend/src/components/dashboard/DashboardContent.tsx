@@ -1,31 +1,34 @@
 "use client";
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { AlertCircle } from "lucide-react";
-import { MatchResult, Meal } from "@/types";
 import { useUser } from "@/context";
-import { matchFoods, VerifiedFood } from "@/services/food-matcher.service";
-import { useNutritionAnalysis } from "@/hooks/useNutritionAnalysis";
-import AddMealModal from "./AddMealModal";
-import FoodVerificationModal from "./FoodVerificationModal";
-import AnalysisResultCard from "./AnalysisResultCard";
-import NutritionBreakdown from "./NutritionBreakdown";
-import GreetingHeader from "./GreetingHeader";
-import StatsCards from "./StatsCards";
-import DailyInsight from "./DailyInsight";
-import MealHistory from "./MealHistory";
 import {
-  useFoodLogsList,
-  useStreaks,
-  useFoodLogActions,
+    useFoodLogActions,
+    useFoodLogsList,
+    useStreaks,
 } from "@/hooks/useFoodLogs";
+import { useNutritionAnalysis } from "@/hooks/useNutritionAnalysis";
 import { useProfile } from "@/hooks/useProfile";
+import { matchFoods, VerifiedFood } from "@/services/food-matcher.service";
+import { MatchResult, Meal } from "@/types";
 import {
-  NutritionAnalysisResponse,
-  NutritionFacts,
+    NutritionAnalysisResponse,
+    NutritionFacts,
 } from "@/types/nutritionAnalyzer";
+import { AlertCircle } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import AddMealModal from "./AddMealModal";
+import AnalysisResultCard from "./AnalysisResultCard";
+import DailyInsight from "./DailyInsight";
+import FoodVerificationModal from "./FoodVerificationModal";
+import GreetingHeader from "./GreetingHeader";
+import MealHistory from "./MealHistory";
+import NutritionBreakdown from "./NutritionBreakdown";
+import StatsCards from "./StatsCards";
 
 // Flow steps
 type FlowStep = "idle" | "input" | "verify" | "result";
+
+// Helper to round numbers to avoid floating point precision issues
+const roundTo2 = (val: number): number => Math.round(val * 100) / 100;
 
 // Transform API log to Meal
 const transformFoodLogToMeal = (log: any): Meal => {
@@ -59,11 +62,11 @@ const transformFoodLogToMeal = (log: any): Meal => {
       }
     });
 
-    nutrition.calories = totalCalories;
-    nutrition.protein = `${totalProtein}g`;
-    nutrition.carbs = `${totalCarbs}g`;
-    nutrition.fat = `${totalFat}g`;
-    nutrition.sodium = `${totalSodium}mg`;
+    nutrition.calories = roundTo2(totalCalories);
+    nutrition.protein = `${roundTo2(totalProtein)}g`;
+    nutrition.carbs = `${roundTo2(totalCarbs)}g`;
+    nutrition.fat = `${roundTo2(totalFat)}g`;
+    nutrition.sodium = `${roundTo2(totalSodium)}mg`;
   }
 
   return {

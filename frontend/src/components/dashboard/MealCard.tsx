@@ -1,8 +1,16 @@
 "use client";
-import React, { useState } from "react";
-import { Clock, Flame, Edit, Trash2, X } from "lucide-react";
 import { Meal } from "@/types";
+import { Clock, Edit, Flame, Trash2 } from "lucide-react";
+import React, { useState } from "react";
 import ConfirmationModal from "./ConfirmationModal";
+
+// Helper to round numbers to avoid floating point precision issues
+const roundTo2 = (val: number | string | undefined): string => {
+  if (val === undefined || val === null) return "0";
+  const num = typeof val === "string" ? parseFloat(val.replace(/[^\d.-]/g, "")) : val;
+  if (!Number.isFinite(num)) return "0";
+  return (Math.round(num * 100) / 100).toString();
+};
 
 interface MealCardProps {
   meal: Meal;
@@ -74,7 +82,7 @@ const MealCard: React.FC<MealCardProps> = ({ meal, onEdit, onDelete }) => {
               <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded-lg">
                 <Flame className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-                  {nutrition.calories} kcal
+                  {roundTo2(nutrition.calories)} kcal
                 </span>
               </div>
             </div>
@@ -82,19 +90,19 @@ const MealCard: React.FC<MealCardProps> = ({ meal, onEdit, onDelete }) => {
             <div className="grid grid-cols-3 gap-2 text-xs text-center">
               <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
                 <p className="font-semibold text-gray-700 dark:text-gray-300">
-                  {nutrition.protein}
+                  {roundTo2(nutrition.protein)}g
                 </p>
                 <p className="text-gray-400">Protein</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
                 <p className="font-semibold text-gray-700 dark:text-gray-300">
-                  {nutrition.carbs}
+                  {roundTo2(nutrition.carbs)}g
                 </p>
                 <p className="text-gray-400">Karbo</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
                 <p className="font-semibold text-gray-700 dark:text-gray-300">
-                  {nutrition.fat}
+                  {roundTo2(nutrition.fat)}g
                 </p>
                 <p className="text-gray-400">Lemak</p>
               </div>
