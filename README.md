@@ -10,9 +10,9 @@ Aplikasi ini dikembangkan sebagai solusi atas rendahnya pemahaman nutrisi makana
 
 ## 👥 Tim Pengembang
 
-* **Dzaky Rezandi** (235150207111006)
-* **Very Fachrurozi** (235150207111003)
-* **Muhammad Raka Fadillah** (235150200111009)
+* **Dzaky Rezandi** : AI Engineer
+* **Very Fachrurozi** : Back-End Developer
+* **Muhammad Raka Fadillah** : Front=End Developer & Product Manager
 
 ---
 
