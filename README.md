@@ -2,167 +2,150 @@
 
 [Demo Website](https://nutri-mori.vercel.app)
 
-NutriMori adalah aplikasi **nutrition tracking cerdas** yang dirancang khusus untuk konteks makanan Indonesia. Aplikasi ini membantu pengguna memahami apa yang mereka makan, berapa kebutuhan gizinya, dan apa pilihan terbaik untuk hari ini — semuanya berbasis data, histori konsumsi, dan dukungan AI.
+**NutriMori** adalah *Website Pencatat Log Makanan Pintar Berbasis Analisis Nutrisi* yang dirancang untuk membantu mahasiswa dan masyarakat umum memahami asupan gizi harian mereka secara ilmiah, terukur, dan relevan dengan pola makan Indonesia.
 
-Bukan sekadar pencatat kalori. NutriMori memadukan **data nutrisi lokal**, **analisis kebiasaan makan**, dan **mesin rekomendasi adaptif** agar keputusan makan jadi lebih sadar, realistis, dan berkelanjutan.
-
----
-
-## ✨ Fitur Utama
-
-* Perhitungan nutrisi per makanan dan ringkasan harian (kalori, makro, hingga mikronutrien).
-* **Batasan nutrisi personal (nutrition limits)** yang disesuaikan dengan profil pengguna.
-* Dukungan **AI untuk personalisasi**, dengan fallback rumus **Mifflin–St Jeor** saat AI tidak tersedia.
-* Rekomendasi harian (daily recommendations) berbasis histori konsumsi dan preferensi.
-* Dashboard analytics untuk memantau tren makan dan progres tujuan kesehatan.
-* Sistem database dengan migrasi terstruktur dan mudah dikembangkan.
-* Postman collection untuk testing dan eksplorasi API.
+Aplikasi ini dikembangkan sebagai solusi atas rendahnya pemahaman nutrisi makanan sehari-hari serta keterbatasan fitur aplikasi kesehatan yang ada saat ini.
 
 ---
 
-## 🧠 Sumber Data Nutrisi
+## 👥 Tim Pengembang
 
-NutriMori dibangun di atas dataset makanan Indonesia agar hasil analisis tetap relevan dengan pola makan lokal.
-
-Kontribusi dataset utama:
-
-* **Andrafarm.com**
-  Digunakan sebagai referensi data nutrisi bahan pangan dan makanan khas Indonesia.
-
-* **Kaggle – Indonesian Food and Drink Nutrition Dataset**
-  [https://www.kaggle.com/datasets/anasfikrihanif/indonesian-food-and-drink-nutrition-dataset](https://www.kaggle.com/datasets/anasfikrihanif/indonesian-food-and-drink-nutrition-dataset)
-  Menyediakan data terstruktur nutrisi makanan dan minuman Indonesia yang digunakan untuk pemodelan dan validasi.
-
-Dataset ini diproses dan disesuaikan (cleaning & normalisasi) agar konsisten dengan sistem perhitungan NutriMori.
+* **Dzaky Rezandi** (235150207111006)
+* **Very Fachrurozi** (235150207111003)
+* **Muhammad Raka Fadillah** (235150200111009)
 
 ---
 
-## 🏗️ Arsitektur & Alur Sistem (Ringkas)
+## 🧩 Pernyataan Masalah
 
-NutriMori adalah aplikasi **full‑stack TypeScript** dengan pemisahan tanggung jawab yang jelas agar scalable dan maintainable.
+Berdasarkan penelitian Wulandari et al. (2020), tingkat pengetahuan gizi memiliki hubungan signifikan dengan status gizi mahasiswa. Namun pada praktiknya:
 
-**Frontend (Presentation Layer)**
+* Pengguna kesulitan memahami kandungan nutrisi makanan sehari-hari.
+* Informasi gizi sering tersebar, tidak kontekstual, atau tidak sesuai makanan lokal.
+* Aplikasi yang ada memiliki fitur terbatas dan kurang personal.
 
-* Dibangun dengan React / Next.js berbasis TypeScript.
-* Menangani UI, food logging, dashboard analytics, dan visualisasi data.
-* Dideploy menggunakan Vercel.
-
-**Backend API**
-
-* Menggunakan pola **Controller → Service → DTO**.
-* Menyediakan endpoint untuk:
-
-  * Kalkulasi nutrition limits
-  * Manajemen food log
-  * Rekomendasi harian
-  * Data analytics
-* Mendukung validasi data dan pengujian via Postman.
-
-**Database & Storage**
-
-* Database relasional (PostgreSQL).
-* Mendukung migrasi skema agar mudah dikembangkan.
-* Integrasi Supabase untuk fitur tertentu (realtime / rekomendasi).
-
-**AI & Layanan Eksternal**
-
-* Integrasi layanan AI (Gemini) untuk personalisasi kebutuhan nutrisi.
-* Fallback otomatis ke rumus **Mifflin–St Jeor** jika AI gagal.
-
-**Diagram singkat (teks)**
-
-```
-Frontend (Vercel)
-   ↕
-Backend API (TypeScript)
-   ↕
-Database (Postgres / Supabase)
-   ↘
-    AI Service (Gemini)
-    Fallback: Mifflin–St Jeor
-```
+NutriMori hadir untuk menjembatani kesenjangan tersebut melalui pendekatan berbasis data dan analisis nutrisi ilmiah.
 
 ---
 
-## 🚀 Mengapa Pendekatan Ini Masuk Akal
+## 💡 Solusi yang Ditawarkan
 
-* Pemisahan frontend & backend memungkinkan pengembangan paralel.
-* Pola Controller/Service/DTO memudahkan testing dan scaling.
-* AI memberi nilai tambah tanpa mengorbankan reliabilitas (karena ada fallback).
-* Dataset lokal membuat rekomendasi lebih relevan dibanding data global generik.
+NutriMori menyediakan sistem pencatatan dan analisis makanan yang:
 
----
-
-## 🛠️ Tech Stack
-
-* **Language**: TypeScript
-* **Frontend**: Next.js / React
-* **Backend**: Node.js (arsitektur modular)
-* **Database**: PostgreSQL + Supabase
-* **AI**: Gemini AI
-* **Deployment**: Vercel (Frontend)
-* **API Testing**: Postman
+* Mudah digunakan
+* Berbasis dataset nutrisi Indonesia
+* Memberikan rekomendasi yang adaptif dan personal
 
 ---
 
-## 🔄 Contoh Alur Sistem (Kalkulasi Nutrition Limits)
+## ✨ Fitur Inti
 
-1. Pengguna mengisi profil (umur, tinggi, berat, gender, preferensi).
-2. Frontend mengirim request ke `POST /nutrition-limits/calculate`.
-3. Backend:
-
-   * Memanggil Gemini AI untuk perhitungan personal, atau
-   * Menggunakan Mifflin–St Jeor jika AI tidak tersedia.
-4. Hasil disimpan di tabel `nutrition_limits`.
-5. Dashboard menampilkan batas nutrisi dan rekomendasi harian.
-
----
-
-## ▶️ Menjalankan Proyek Secara Lokal
-
-1. Clone repository:
-
-   ```bash
-   git clone https://github.com/rakafdil/NutriMori.git
-   ```
-2. Install dependencies:
-
-   ```bash
-   cd NutriMori
-   npm install / pnpm install / yarn
-   ```
-3. Siapkan environment variables (DB, AI_KEY, SUPABASE_URL, dll).
-4. Jalankan migrasi database sesuai tool yang digunakan.
-5. Jalankan aplikasi:
-
-   ```bash
-   npm run dev
-   ```
+* Profil pengguna dan kalkulator kebutuhan kalori serta makronutrien.
+* Pencarian makanan dengan informasi gizi lengkap per item.
+* Pencatatan asupan makanan harian (food log).
+* Rekomendasi makanan sehat berbasis analisis nutrisi.
+* Filter alergi dan preferensi diet (vegan, rendah karbohidrat, bebas gluten, dll).
+* Grafik progres (berat badan, kalori, makro) dan ringkasan mingguan.
+* Antarmuka responsif dengan dukungan mode gelap.
 
 ---
 
-## 🧪 Dokumentasi & Testing
+## 🧠 Dataset & Sumber Data
 
-* Postman collection tersedia untuk menguji endpoint utama.
-* DTO dan validasi memastikan integritas data selama pengembangan.
+NutriMori menggunakan dataset nutrisi yang relevan dan tervalidasi untuk konteks Indonesia:
+
+1. **TKPI & USDA (Andrafarm)**
+   Daftar Kandungan Gizi Bahan Makanan Indonesia dan USDA.
+   [https://www.andrafarm.com/_andra.php?_i=daftar-tkpi](https://www.andrafarm.com/_andra.php?_i=daftar-tkpi)
+   [https://www.andrafarm.com/_andra.php?_i=daftar-usda](https://www.andrafarm.com/_andra.php?_i=daftar-usda)
+
+2. **Indonesian Food and Drink Nutrition Dataset (Kaggle)**
+   [https://www.kaggle.com/datasets/anasfikrihanif/indonesian-food-and-drink-nutrition-dataset](https://www.kaggle.com/datasets/anasfikrihanif/indonesian-food-and-drink-nutrition-dataset)
+
+Dataset diproses melalui tahap *cleaning*, normalisasi satuan, dan pemetaan agar konsisten dengan sistem analisis NutriMori.
 
 ---
 
-## 🤝 Kontribusi
+## 🧮 Dasar Perhitungan Nutrisi
 
-Kontribusi sangat terbuka.
+Perhitungan nutrisi dalam NutriMori mengacu pada standar internasional dan nasional:
 
-1. Fork repository
-2. Buat branch fitur
-3. Ajukan Pull Request dengan deskripsi yang jelas dan cara pengujian
+### 1. Energi Total (Kalori)
+
+Dihitung menggunakan **faktor Atwater**:
+
+* Protein: 4 kkal/g
+* Karbohidrat: 4 kkal/g
+* Lemak: 9 kkal/g
+  (Sesuai standar FAO/INFOODS)
+
+### 2. Distribusi Makronutrien
+
+Mengacu pada rekomendasi **WHO/FAO**:
+
+* Karbohidrat: 55–75%
+* Lemak: 15–30%
+* Protein: 10–15%
+
+### 3. Mikronutrien (AKG)
+
+Asupan dibandingkan dengan **Angka Kecukupan Gizi (AKG) Indonesia** berdasarkan umur dan jenis kelamin.
+
+### 4. Estimasi Food Log
+
+Menggunakan metode **dietary record** berbasis tabel komposisi pangan yang tervalidasi secara ilmiah.
+
+### 5. Estimasi Gula
+
+Jika data gula tidak tersedia, nilai diestimasi dari total karbohidrat dan ditandai secara eksplisit.
+
+### 6. Evaluasi Batas Kesehatan
+
+Asupan dibandingkan dengan batas WHO untuk:
+
+* Natrium
+* Gula
+
+Untuk menghasilkan peringatan kesehatan.
+
+Referensi WHO:
+[https://www.who.int/publications/i/item/9789241549028](https://www.who.int/publications/i/item/9789241549028)
+
+---
+
+## 🏗️ Arsitektur Teknis
+
+### Models & Architecture
+
+* **LLM**: Google Gemini (Flash Latest, Pro Latest, 2.0 Flash Lite)
+* **Embedding Model**: Qwen3-0.6B
+
+### Tech Stack
+
+* **Frontend**: Next.js (TypeScript)
+* **Backend**: NestJS & Flask (API)
+* **Database**: PostgreSQL (Supabase)
+* **Deployment**:
+
+  * Frontend: Vercel
+  * AI Service: HuggingFace
+
+---
+
+## 🔗 Demo & Repository
+
+* Demo Website: [https://nutri-mori.vercel.app](https://nutri-mori.vercel.app)
+* GitHub Repository: [https://github.com/rakafdil/NutriMori](https://github.com/rakafdil/NutriMori)
+
+---
+
+## 📚 Dokumentasi Teknis Lanjutan
+
+Penjelasan detail modul analisis nutrisi:
+[https://github.com/rakafdil/NutriMori/blob/main/backend/src/nutrition-analysis/README.md](https://github.com/rakafdil/NutriMori/blob/main/backend/src/nutrition-analysis/README.md)
 
 ---
 
 ## 📄 Lisensi
 
 MIT License — lihat file LICENSE untuk detail.
-
----
-
-Catatan:
-Dokumentasi ini dapat dikembangkan lebih lanjut (diagram ER, sequence diagram, panduan deploy backend, atau dokumentasi API detail) sesuai kebutuhan proyek.
