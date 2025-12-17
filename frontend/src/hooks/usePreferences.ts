@@ -206,16 +206,20 @@ export const useLimitIntakes = () => {
     setError(null);
     try {
       const data = await preferencesService.getLimitIntake();
-      const newLimitData: LimitIntakes = {
-        max_calories: data?.max_calories || 2000,
-        max_protein: data?.max_protein || 50,
-        max_carbs: data?.max_carbs || 300,
-        max_fat: data?.max_fat || 65,
-        max_sugar: data?.max_sugar || 50,
-        max_fiber: data?.max_fiber || 25,
-        max_sodium: data?.max_sodium || 2300,
-        max_cholesterol: data?.max_cholesterol || 300,
-        explanation: data?.explanation || "",
+      const payload =
+        data && "data" in (data as any)
+          ? ((data as any).data as LimitIntakes)
+          : (data as LimitIntakes | null);
+      const newLimitData = {
+        max_calories: payload?.max_calories || 2000,
+        max_protein: payload?.max_protein || 50,
+        max_carbs: payload?.max_carbs || 300,
+        max_fat: payload?.max_fat || 65,
+        max_sugar: payload?.max_sugar || 50,
+        max_fiber: payload?.max_fiber || 25,
+        max_sodium: payload?.max_sodium || 2300,
+        max_cholesterol: payload?.max_cholesterol || 300,
+        explanation: payload?.explanation || "",
       };
       setLimitData(newLimitData);
       // Save to localStorage
