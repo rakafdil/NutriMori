@@ -1,5 +1,9 @@
 import { API_CONFIG, AUTH_STORAGE_KEY, getApiUrl } from "@/config/apiConfig";
-import { UserPreferences, UpdateUserPreferencesDto } from "@/types/user";
+import {
+  UserPreferences,
+  UpdateUserPreferencesDto,
+  LimitIntakes,
+} from "@/types/user";
 
 class PreferencesService {
   async getPreferences(): Promise<UserPreferences | null> {
@@ -10,6 +14,18 @@ class PreferencesService {
       return data !== undefined ? data : null;
     } catch (error) {
       console.error("Get preferences error:", error);
+      return null;
+    }
+  }
+
+  async getLimitIntake(): Promise<LimitIntakes | null> {
+    try {
+      const url = getApiUrl(API_CONFIG.ENDPOINTS.USER_PREFERENCES.GET_LIMITS);
+      const response = await this.authenticatedFetch(url);
+      const data = await response.json();
+      return data !== undefined ? data : null;
+    } catch (error) {
+      console.error("Get limits error:", error);
       return null;
     }
   }

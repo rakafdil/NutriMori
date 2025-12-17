@@ -127,7 +127,11 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
     const btn = addButtonRef.current;
     if (btn) {
       const rect = btn.getBoundingClientRect();
-      setCustomDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+      setCustomDropdownPos({
+        top: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+      });
     }
   };
 
@@ -154,14 +158,22 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
         const btn = buttonRefs.current[openDropdown];
         if (btn) {
           const rect = btn.getBoundingClientRect();
-          setDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+          setDropdownPos({
+            top: rect.bottom,
+            left: rect.left,
+            width: rect.width,
+          });
         }
       }
       if (isAddingCustom) {
         const btn = addButtonRef.current;
         if (btn) {
           const rect = btn.getBoundingClientRect();
-          setCustomDropdownPos({ top: rect.bottom, left: rect.left, width: rect.width });
+          setCustomDropdownPos({
+            top: rect.bottom,
+            left: rect.left,
+            width: rect.width,
+          });
         }
       }
     };

@@ -1,9 +1,11 @@
 "use client";
 import { Meal } from "@/types";
+import { LimitIntakes } from "@/types/user";
 import React from "react";
 
 interface NutritionBreakdownProps {
   meals: Meal[];
+  limit: LimitIntakes;
 }
 
 const parseNumeric = (v: any): number => {
@@ -16,10 +18,12 @@ const parseNumeric = (v: any): number => {
   return 0;
 };
 
-// Helper to round numbers to avoid floating point precision issues
 const roundTo2 = (val: number): number => Math.round(val * 100) / 100;
 
-const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
+const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({
+  meals,
+  limit,
+}) => {
   const totalCalories = meals.reduce(
     (a, b) => a + parseNumeric(b.nutrition?.calories),
     0
@@ -45,10 +49,20 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
     0
   );
 
-  // Contoh persentase berdasarkan rekomendasi harian (sesuaikan dengan kebutuhan)
-  const proteinPercent = Math.min((totalProtein / 50) * 100, 100); // Asumsi 50g/hari
-  const carbsPercent = Math.min((totalCarbs / 300) * 100, 100); // Asumsi 300g/hari
-  const fatPercent = Math.min((totalFats / 70) * 100, 100); // Asumsi 70g/hari
+  const caloriesPercent = Math.min(
+    (totalCalories / limit.max_calories) * 100,
+    100
+  );
+  const proteinPercent = Math.min(
+    (totalProtein / limit.max_protein) * 100,
+    100
+  );
+  const carbsPercent = Math.min((totalCarbs / limit.max_carbs) * 100, 100);
+  const fatPercent = Math.min((totalFats / limit.max_fat) * 100, 100);
+  const fiberPercent = Math.min((totalFiber / limit.max_fiber) * 100, 100);
+  const sugarPercent = Math.min((totalSugar / limit.max_sugar) * 100, 100);
+
+  const clampPos = (p: number) => `${Math.min(Math.max(p, 2), 98)}%`;
 
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 h-full transition-colors">
@@ -64,15 +78,26 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
               {roundTo2(totalCalories)} kcal
             </span>
           </div>
-          <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+
+          {/* outer wrapper (no overflow-hidden) so tooltip is not clipped */}
+          <div className="relative group">
+            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 transition-all duration-300"
+                style={{ width: `${caloriesPercent}%` }}
+                title={`${roundTo2(caloriesPercent)}%`}
+              />
+            </div>
+
             <div
-              className="h-full bg-green-500 transition-all duration-300"
-              style={{
-                width: `${Math.min((totalCalories / 2000) * 100, 100)}%`,
-              }} // Asumsi 2000 kcal/hari
-            ></div>
+              className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
+              style={{ left: `calc(${clampPos(caloriesPercent)} - 16px)` }}
+            >
+              {roundTo2(caloriesPercent)}%
+            </div>
           </div>
         </div>
+
         {/* Protein */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
@@ -81,13 +106,25 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
               {roundTo2(totalProtein)}g
             </span>
           </div>
-          <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+
+          <div className="relative group">
+            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 transition-all duration-300"
+                style={{ width: `${proteinPercent}%` }}
+                title={`${roundTo2(proteinPercent)}%`}
+              />
+            </div>
+
             <div
-              className="h-full bg-blue-500 transition-all duration-300"
-              style={{ width: `${proteinPercent}%` }}
-            ></div>
+              className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
+              style={{ left: `calc(${clampPos(proteinPercent)} - 16px)` }}
+            >
+              {roundTo2(proteinPercent)}%
+            </div>
           </div>
         </div>
+
         {/* Carbs */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
@@ -96,13 +133,25 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
               {roundTo2(totalCarbs)}g
             </span>
           </div>
-          <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+
+          <div className="relative group">
+            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-orange-500 transition-all duration-300"
+                style={{ width: `${carbsPercent}%` }}
+                title={`${roundTo2(carbsPercent)}%`}
+              />
+            </div>
+
             <div
-              className="h-full bg-orange-500 transition-all duration-300"
-              style={{ width: `${carbsPercent}%` }}
-            ></div>
+              className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
+              style={{ left: `calc(${clampPos(carbsPercent)} - 16px)` }}
+            >
+              {roundTo2(carbsPercent)}%
+            </div>
           </div>
         </div>
+
         {/* Fat */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
@@ -111,13 +160,25 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
               {roundTo2(totalFats)}g
             </span>
           </div>
-          <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+
+          <div className="relative group">
+            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-yellow-500 transition-all duration-300"
+                style={{ width: `${fatPercent}%` }}
+                title={`${roundTo2(fatPercent)}%`}
+              />
+            </div>
+
             <div
-              className="h-full bg-yellow-500 transition-all duration-300"
-              style={{ width: `${fatPercent}%` }}
-            ></div>
+              className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
+              style={{ left: `calc(${clampPos(fatPercent)} - 16px)` }}
+            >
+              {roundTo2(fatPercent)}%
+            </div>
           </div>
         </div>
+
         {/* Fiber */}
         {totalFiber > 0 && (
           <div className="space-y-2">
@@ -127,14 +188,26 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
                 {roundTo2(totalFiber)}g
               </span>
             </div>
-            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+
+            <div className="relative group">
+              <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-500 transition-all duration-300"
+                  style={{ width: `${fiberPercent}%` }}
+                  title={`${roundTo2(fiberPercent)}%`}
+                />
+              </div>
+
               <div
-                className="h-full bg-purple-500 transition-all duration-300"
-                style={{ width: `${Math.min((totalFiber / 25) * 100, 100)}%` }} // Asumsi 25g/hari
-              ></div>
+                className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
+                style={{ left: `calc(${clampPos(fiberPercent)} - 16px)` }}
+              >
+                {roundTo2(fiberPercent)}%
+              </div>
             </div>
           </div>
         )}
+
         {/* Sugar */}
         {totalSugar > 0 && (
           <div className="space-y-2">
@@ -144,11 +217,22 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
                 {roundTo2(totalSugar)}g
               </span>
             </div>
-            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+
+            <div className="relative group">
+              <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-red-500 transition-all duration-300"
+                  style={{ width: `${sugarPercent}%` }}
+                  title={`${roundTo2(sugarPercent)}%`}
+                />
+              </div>
+
               <div
-                className="h-full bg-red-500 transition-all duration-300"
-                style={{ width: `${Math.min((totalSugar / 50) * 100, 100)}%` }} // Asumsi 50g/hari
-              ></div>
+                className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
+                style={{ left: `calc(${clampPos(sugarPercent)} - 16px)` }}
+              >
+                {roundTo2(sugarPercent)}%
+              </div>
             </div>
           </div>
         )}
@@ -156,6 +240,4 @@ const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({ meals }) => {
     </div>
   );
 };
-// ...existing code...
-
 export default NutritionBreakdown;

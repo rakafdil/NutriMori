@@ -11,6 +11,7 @@ export const API_CONFIG = {
       RESET_PASSWORD_REQUEST: "/auth/reset-password-request",
       RESET_PASSWORD: "/auth/reset-password",
     },
+
     USER: {
       PROFILE: "/user/profile",
       UPDATE: "/user/update",
@@ -69,13 +70,16 @@ export const API_CONFIG = {
       PATCH_BY_ID: "/nutrition-rules/:id",
       DELETE_BY_ID: "/nutrition-rules/:id",
     },
+
     USER_PREFERENCES: {
       BY_USER: "/user-preferences/",
       GET_BY_USER: "/user-preferences/",
       PUT_BY_USER: "/user-preferences/",
       PATCH_BY_USER: "/user-preferences/",
       DELETE_BY_USER: "/user-preferences/",
+      GET_LIMITS: "/nutrition-limits",
     },
+
     HABIT_INSIGHTS: {
       LIST: "/habit-insights",
       REFRESH: "/habit-insights/refresh", // Endpoint baru

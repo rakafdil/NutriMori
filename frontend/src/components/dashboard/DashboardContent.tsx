@@ -24,6 +24,7 @@ import GreetingHeader from "./GreetingHeader";
 import MealHistory from "./MealHistory";
 import NutritionBreakdown from "./NutritionBreakdown";
 import StatsCards from "./StatsCards";
+import { useLimitIntakes } from "@/hooks/usePreferences";
 
 // Flow steps
 type FlowStep = "idle" | "input" | "verify" | "result";
@@ -113,6 +114,12 @@ const DashboardContent: React.FC = () => {
     loadFromCache,
   } = useNutritionAnalysis();
 
+  const {
+    fetchLimitIntakes,
+    limitData,
+    loading: limitLoading,
+  } = useLimitIntakes();
+
   // Data hooks
   const {
     isLoading: isLoadingLogs,
@@ -140,6 +147,7 @@ const DashboardContent: React.FC = () => {
     isMountedRef.current = true;
     fetchProfile().catch(console.error);
     loadFromCache();
+    fetchLimitIntakes();
     return () => {
       isMountedRef.current = false;
     };
@@ -388,6 +396,7 @@ const DashboardContent: React.FC = () => {
 
       <StatsCards
         totalCalories={totalCals}
+        caloriesTarget={limitData.max_calories}
         currentStreak={streaksData?.currentStreak || 0}
         longestStreak={streaksData?.longestStreak || 0}
         isLoadingStreaks={isLoadingStreaks}
@@ -413,7 +422,7 @@ const DashboardContent: React.FC = () => {
               onClose={handleCloseResult}
             />
           ) : (
-            <NutritionBreakdown meals={todayMeals} />
+            <NutritionBreakdown meals={todayMeals} limit={limitData} />
           )}
         </div>
       </div>

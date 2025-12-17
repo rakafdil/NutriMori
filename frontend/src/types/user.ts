@@ -21,6 +21,18 @@ export interface UserPreferences {
   users?: User;
 }
 
+export interface LimitIntakes {
+  max_calories: number;
+  max_protein: number;
+  max_carbs: number;
+  max_fat: number;
+  max_sugar: number;
+  max_fiber: number;
+  max_sodium: number;
+  max_cholesterol: number;
+  explanation: string;
+}
+
 export interface CreateUserPreferencesDto {
   userId: string;
   allergies?: string[];
