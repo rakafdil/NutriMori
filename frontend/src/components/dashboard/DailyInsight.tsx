@@ -6,8 +6,8 @@ import { useHabitInsights } from "@/hooks/useHabitInsights";
 const LOADING_TIMEOUT_MS = 15000; // Increased to 15 seconds
 
 const DailyInsight: React.FC = () => {
-  const { data, isLoading, error, refreshInsights } =
-    useHabitInsights("weekly");
+  const { data, isLoading, error, refreshInsights, setCustomDateRange } =
+    useHabitInsights();
   const [todayDate, setTodayDate] = useState<string>("");
   const [loadingTooLong, setLoadingTooLong] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -22,6 +22,8 @@ const DailyInsight: React.FC = () => {
       day: "numeric",
     });
     setTodayDate(formatted);
+    const todayIso = now.toISOString().split("T")[0];
+    setCustomDateRange({ startDate: todayIso, endDate: todayIso });
   }, []);
 
   // Detect if loading takes too long
@@ -57,7 +59,7 @@ const DailyInsight: React.FC = () => {
       : "Mulai catat makananmu untuk mendapatkan insight harian.");
 
   return (
-    <div className="bg-gradient-to-br from-emerald-50 to-teal-50/50 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-100 dark:border-emerald-900/50 p-6 rounded-3xl relative overflow-hidden">
+    <div className="bg-linear-to-br from-emerald-50 to-teal-50/50 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-100 dark:border-emerald-900/50 p-6 rounded-3xl relative overflow-hidden">
       <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-200/30 dark:bg-emerald-500/10 rounded-full blur-2xl"></div>
       <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-teal-200/20 dark:bg-teal-500/10 rounded-full blur-2xl"></div>
 

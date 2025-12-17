@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo } from "react";
-import { Plus, Filter, UtensilsCrossed } from "lucide-react";
+import { Plus, Filter, UtensilsCrossed, LoaderIcon } from "lucide-react";
 import { Meal } from "@/types";
 import MealCard from "./MealCard";
 import MealFilters, { MealFiltersState } from "./MealFilters";
@@ -95,7 +95,12 @@ const MealHistory: React.FC<MealHistoryProps> = ({
             disabled={isDisabled}
             className="hidden md:flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-1 rounded-lg transition disabled:opacity-50"
           >
-            <Plus className="w-4 h-4" /> Log Meal
+            {!isDisabled ? (
+              <Plus className="w-4 h-4" />
+            ) : (
+              <LoaderIcon className="w-4 h-4 animate-spin" />
+            )}{" "}
+            Log Meal
           </button>
         </div>
       </div>
