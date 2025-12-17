@@ -1,17 +1,18 @@
 "use client";
 import { useUser } from "@/context";
 import {
-    useFoodLogActions,
-    useFoodLogsList,
-    useStreaks,
+  useDailySummary,
+  useFoodLogActions,
+  useFoodLogsList,
+  useStreaks,
 } from "@/hooks/useFoodLogs";
 import { useNutritionAnalysis } from "@/hooks/useNutritionAnalysis";
 import { useProfile } from "@/hooks/useProfile";
 import { matchFoods, VerifiedFood } from "@/services/food-matcher.service";
 import { MatchResult, Meal } from "@/types";
 import {
-    NutritionAnalysisResponse,
-    NutritionFacts,
+  NutritionAnalysisResponse,
+  NutritionFacts,
 } from "@/types/nutritionAnalyzer";
 import { AlertCircle } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -119,6 +120,14 @@ const DashboardContent: React.FC = () => {
     error: logsError,
     refetch: refetchLogs,
   } = useFoodLogsList();
+
+  // const {
+  //   isLoading: isLoadingLogsHistory,
+  //   data: logsHistoryData,
+  //   error: logsHistoryError,
+  //   refetch: refetchLogsHistory,
+  // } = useDailySummary();
+
   const {
     isLoading: isLoadingStreaks,
     data: streaksData,
@@ -180,7 +189,6 @@ const DashboardContent: React.FC = () => {
           }
         });
       }
-
       if (isMountedRef.current) {
         setMealAnalyses(newAnalyses);
       }
@@ -212,14 +220,24 @@ const DashboardContent: React.FC = () => {
     });
   }, [meals, mealAnalyses]);
 
+  const formatDateKey = (t: Date | string | number | undefined) => {
+    if (!t) return "";
+    const d = t instanceof Date ? t : new Date(t as any);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().split("T")[0]; // YYYY-MM-DD
+  };
+
+  const todayKey = new Date().toISOString().split("T")[0];
+
+  const todayMeals = mealsWithAnalyses.filter(
+    (m) => formatDateKey(m.timestamp) === todayKey
+  );
+
   // Computed values
-  const totalCals = mealsWithAnalyses.reduce(
+  const totalCals = todayMeals.reduce(
     (acc, m) => acc + (m.nutrition.calories ?? 0),
     0
   );
-  const totalSodium = mealsWithAnalyses.filter(
-    (m) => m.nutrition.sodium === "High"
-  ).length;
 
   // Handlers
   const handleOpenAddMeal = () => setCurrentStep("input");
@@ -370,7 +388,6 @@ const DashboardContent: React.FC = () => {
 
       <StatsCards
         totalCalories={totalCals}
-        totalHighSodium={totalSodium}
         currentStreak={streaksData?.currentStreak || 0}
         longestStreak={streaksData?.longestStreak || 0}
         isLoadingStreaks={isLoadingStreaks}
@@ -396,7 +413,7 @@ const DashboardContent: React.FC = () => {
               onClose={handleCloseResult}
             />
           ) : (
-            <NutritionBreakdown meals={mealsWithAnalyses} />
+            <NutritionBreakdown meals={todayMeals} />
           )}
         </div>
       </div>

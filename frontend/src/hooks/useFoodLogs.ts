@@ -98,7 +98,7 @@ export const useDailySummary = (date?: Date | string) => {
       const qDate = date instanceof Date ? date.toISOString() : date;
       const result = await FoodLogsService.getDailySummary(qDate);
       if (mountedRef.current) {
-        setData(result);
+        setData(result.logs);
         setIsLoading(false);
       }
     } catch (err: any) {

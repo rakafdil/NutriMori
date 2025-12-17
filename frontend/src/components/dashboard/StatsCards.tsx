@@ -5,7 +5,6 @@ import React from "react";
 interface StatsCardsProps {
   totalCalories: number;
   caloriesTarget?: number;
-  totalHighSodium: number;
   currentStreak: number;
   longestStreak: number;
   isLoadingStreaks: boolean;
@@ -14,7 +13,6 @@ interface StatsCardsProps {
 const StatsCards: React.FC<StatsCardsProps> = ({
   totalCalories,
   caloriesTarget = 2200,
-  totalHighSodium,
   currentStreak,
   longestStreak,
   isLoadingStreaks,
