@@ -153,10 +153,6 @@ const SettingsContent: React.FC = () => {
         isLoggingOut={isLoggingOut}
         handleLogout={handleLogout}
       />
-
-      <div className="text-center text-sm text-gray-400 dark:text-gray-600 mt-12">
-        NutriMori AI v1.0.0
-      </div>
     </div>
   );
 };

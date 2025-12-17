@@ -85,19 +85,20 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
         nutritionFacts.protein ||
         nutritionFacts.carbs ||
         nutritionFacts.fat) && (
-        <div className="grid grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {nutritionFacts.calories && (
-            <div className="bg-emerald-50 dark:bg-emerald-900/30 p-3 rounded-xl text-center flex flex-col justify-center">
-              <Flame className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl text-center flex flex-col items-center justify-center min-h-[72px]">
+              <Flame className="w-5 h-5 text-emerald-600 dark:text-emerald-400 mb-1" />
+              <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300 truncate">
                 {formatValue(nutritionFacts.calories)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">kcal</p>
             </div>
           )}
+
           {!isEmptyOrZero(nutritionFacts.protein) && (
-            <div className="bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl text-center flex flex-col justify-center">
-              <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl text-center flex flex-col items-center justify-center min-h-[72px]">
+              <p className="text-xl font-bold text-blue-700 dark:text-blue-300 truncate">
                 {formatValue(nutritionFacts.protein)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -105,17 +106,19 @@ const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
               </p>
             </div>
           )}
+
           {!isEmptyOrZero(nutritionFacts.carbs) && (
-            <div className="bg-orange-50 dark:bg-orange-900/30 rounded-xl text-center flex flex-col justify-center">
-              <p className="text-xl font-bold text-orange-700 dark:text-orange-300">
+            <div className="p-3 bg-orange-50 dark:bg-orange-900/30 rounded-xl text-center flex flex-col items-center justify-center min-h-[72px]">
+              <p className="text-xl font-bold text-orange-700 dark:text-orange-300 truncate">
                 {formatValue(nutritionFacts.carbs)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Karbo</p>
             </div>
           )}
+
           {!isEmptyOrZero(nutritionFacts.fat) && (
-            <div className="bg-purple-50 dark:bg-purple-900/30 p-3 rounded-xl text-center flex flex-col justify-center">
-              <p className="text-xl font-bold text-purple-700 dark:text-purple-300">
+            <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-xl text-center flex flex-col items-center justify-center min-h-[72px]">
+              <p className="text-xl font-bold text-purple-700 dark:text-purple-300 truncate">
                 {formatValue(nutritionFacts.fat)}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Lemak</p>

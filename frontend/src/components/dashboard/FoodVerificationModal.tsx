@@ -361,7 +361,7 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
                 >
                   <Minus className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                 </button>
-                <span className="font-semibold dark:text-white min-w-[40px] text-center">
+                <span className="font-semibold dark:text-white min-w-10 text-center">
                   {sel.quantity}
                 </span>
                 <button
@@ -380,6 +380,7 @@ const FoodVerificationModal: React.FC<FoodVerificationModalProps> = ({
                       )
                     )
                   }
+                  disabled
                   className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-2 py-1 rounded text-sm dark:text-white"
                 />
               </div>

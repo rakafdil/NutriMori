@@ -290,6 +290,7 @@ const DashboardContent: React.FC = () => {
   };
 
   const handleVerificationConfirm = async (verifiedFoods: VerifiedFood[]) => {
+    console.log(verifiedFoods);
     setIsProcessing(true);
     setCurrentStep("idle");
 
@@ -404,8 +405,8 @@ const DashboardContent: React.FC = () => {
 
       <DailyInsight />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in-up">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 animate-fade-in-up">
+        <div className="lg:col-span-3">
           <MealHistory
             meals={mealsWithAnalyses}
             onAddMeal={handleOpenAddMeal}
@@ -415,7 +416,7 @@ const DashboardContent: React.FC = () => {
           />
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-2">
           {analysisResult && currentStep === "result" ? (
             <AnalysisResultCard
               analysis={analysisResult}
