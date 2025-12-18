@@ -18,7 +18,7 @@ interface InsightContext {
     avgCalories: number;
     targetCalories: number;
     healthScore: number;
-    totalMeals: number;
+    totalMeals: number; // Already included, good!
 }
 
 // ============ MINIMAL PROMPT BUILDER ============
@@ -90,13 +90,21 @@ export class GeminiClient {
         patterns: HabitPatternDto[],
         context: InsightContext,
     ): Promise<AiInsightResult> {
-        // Determine if we must use base token (rule): data days < 3
+        // Determine if we have meaningful data to analyze
+        // Consider both days AND total meals - even 1 day with 2+ meals is meaningful
         const dataDays = data?.length || context.daysCount || 0;
+        const totalMeals = context.totalMeals || 0;
+        const hasPatterns = patterns && patterns.length > 0;
+        
+        // Use Gemini if: (days >= 1 AND meals >= 2) OR patterns exist
+        const hasMeaningfulData = (dataDays >= 1 && totalMeals >= 2) || hasPatterns;
+        
+        this.logger.debug(`Data check: days=${dataDays}, meals=${totalMeals}, patterns=${patterns.length}, meaningful=${hasMeaningfulData}`);
 
         // If not configured, always fallback (no Gemini call)
         if (!this.isConfigured()) {
             this.logger.warn('Gemini API key not configured, using fallback');
-            return this.generateFallback(patterns, dataDays < 3 ? undefined : data, context);
+            return this.generateFallback(patterns, hasMeaningfulData ? data : undefined, context);
         }
 
         // Build minimal pattern summary (just count positive/negative)
@@ -106,10 +114,10 @@ export class GeminiClient {
             ? `+${posCount}/-${negCount}pola`
             : '';
 
-        // Decide prompt strategy according to rules:
-        // - If dataDays < 3 => use basePrompt (immutable) and DO NOT include data
-        // - Else => use buildMinimalPrompt (may include metrics)
-        const useBasePrompt = dataDays < 3;
+        // Decide prompt strategy:
+        // - Use basePrompt only if truly no meaningful data (< 2 meals AND no patterns)
+        // - Otherwise use buildMinimalPrompt with available metrics
+        const useBasePrompt = !hasMeaningfulData;
         const prompt = useBasePrompt
             ? GEMINI_CONFIG.basePrompt
             : buildMinimalPrompt(context, patternSummary);
@@ -254,7 +262,7 @@ export class GeminiClient {
     generateFallback(
         patterns: HabitPatternDto[],
         data?: AggregatedDayData[],
-        context?: { period: string; daysCount: number; avgCalories: number; targetCalories: number },
+        context?: { period: string; daysCount: number; avgCalories: number; targetCalories: number; totalMeals?: number },
     ): AiInsightResult {
         const negativePatterns = patterns.filter(p => p.type === 'negative');
         const positivePatterns = patterns.filter(p => p.type === 'positive');
@@ -262,8 +270,12 @@ export class GeminiClient {
         // Build summary based on patterns and data
         let summary = '';
         const dataLength = data?.length || 0;
+        const totalMeals = context?.totalMeals || 0;
         
-        if (dataLength < 3) {
+        // Only show "limited data" if truly insufficient (< 2 meals AND no patterns)
+        const hasMeaningfulData = totalMeals >= 2 || patterns.length > 0;
+        
+        if (!hasMeaningfulData || dataLength === 0) {
             summary = FALLBACK_SUMMARIES.limited;
         } else if (negativePatterns.length > positivePatterns.length) {
             summary = FALLBACK_SUMMARIES.needsWork;

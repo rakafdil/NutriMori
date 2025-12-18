@@ -69,6 +69,19 @@ export class HabitInsightsService {
         // Aggregate data per day
         const aggregatedData = this.aggregateData(nutritionData);
 
+        // Safety check: Ensure aggregation produced meaningful data
+        if (aggregatedData.length === 0) {
+            this.logger.warn(`Aggregation produced empty data for user ${userId}`);
+            return this.buildEmptyResponse(userId, period, dateRange);
+        }
+
+        // Additional check: Ensure we have meals
+        const totalMealsCheck = aggregatedData.reduce((sum, d) => sum + (d.mealCount || 0), 0);
+        if (totalMealsCheck === 0) {
+            this.logger.warn(`No meals found after aggregation for user ${userId}`);
+            return this.buildEmptyResponse(userId, period, dateRange);
+        }
+
         // Generate data hash for cache validation
         const dataHash = CacheManager.generateDataHash(aggregatedData);
 
@@ -141,8 +154,10 @@ export class HabitInsightsService {
         this.logger.debug(`Fetching nutrition data for user ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
         // Get data from nutrition_analysis table
-        // Filter by nutrition_analysis.created_at (more reliable than nested filter)
-        const { data, error } = await supabase
+        // IMPORTANT: Supabase nested column filters are unreliable, so we:
+        // 1. Fetch all user data with inner join to food_logs
+        // 2. Filter in-memory by food_logs.created_at
+        const { data: rawData, error } = await supabase
             .from('nutrition_analysis')
             .select(`
                 id,
@@ -161,25 +176,49 @@ export class HabitInsightsService {
                 warnings,
                 created_at,
                 updated_at,
-                food_logs(
+                food_logs!inner(
                     log_id,
                     user_id,
                     meal_type,
                     created_at
                 )
             `)
-            .eq('user_id', userId)
-            .gte('created_at', startDate.toISOString())
-            .lte('created_at', endDate.toISOString())
-            .order('created_at', { ascending: true });
+            .eq('user_id', userId);
 
         if (error) {
             this.logger.error(`Failed to fetch nutrition analysis: ${error.message}`);
             return [];
         }
 
+        // Filter in-memory by food_logs.created_at
+        const data = (rawData || []).filter((record: any) => {
+            // Handle both array and object food_logs
+            const foodLogs = Array.isArray(record.food_logs) ? record.food_logs[0] : record.food_logs;
+            
+            if (!foodLogs?.created_at) {
+                this.logger.warn(`Record ${record.id} missing food_logs.created_at`);
+                return false;
+            }
+            
+            // Use UTC for date comparison to avoid timezone issues
+            const logDate = new Date(foodLogs.created_at);
+            const isInRange = logDate >= startDate && logDate <= endDate;
+            
+            if (!isInRange) {
+                this.logger.debug(`Record ${record.id} date ${logDate.toISOString()} outside range`);
+            }
+            
+            return isInRange;
+        }).sort((a: any, b: any) => {
+            const foodLogsA = Array.isArray(a.food_logs) ? a.food_logs[0] : a.food_logs;
+            const foodLogsB = Array.isArray(b.food_logs) ? b.food_logs[0] : b.food_logs;
+            const dateA = new Date(foodLogsA.created_at).getTime();
+            const dateB = new Date(foodLogsB.created_at).getTime();
+            return dateA - dateB;
+        });
+
         if (data?.length) {
-            this.logger.debug(`Found ${data.length} nutrition analysis records for user ${userId}`);
+            this.logger.debug(`Found ${data.length} nutrition analysis records for user ${userId} (filtered from ${rawData?.length || 0} total)`);
             return data as NutritionAnalysisRecord[];
         }
 
@@ -269,6 +308,12 @@ export class HabitInsightsService {
         aggregatedData: AggregatedDayData[],
         analysis: AnalysisResult
     ): Promise<void> {
+        // Calculate metrics for cache with null safety
+        const totalMeals = aggregatedData.reduce((sum, d) => sum + (d.mealCount || 0), 0);
+        const avgCalories = aggregatedData.length > 0
+            ? Math.round(aggregatedData.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / aggregatedData.length)
+            : 0;
+
         await this.cacheManager.saveToCache(
             userId,
             period as any,
@@ -277,7 +322,10 @@ export class HabitInsightsService {
             analysis.summary,
             analysis.recommendations,
             analysis.healthScore,
-            dataHash
+            dataHash,
+            aggregatedData.length,
+            totalMeals,
+            avgCalories
         );
     }
 
@@ -303,8 +351,8 @@ export class HabitInsightsService {
             }
         );
 
-        // Calculate metrics
-        const totalMeals = data.reduce((sum, d) => sum + d.mealCount, 0);
+        // Calculate metrics with null safety
+        const totalMeals = data.reduce((sum, d) => sum + (d.mealCount || 0), 0);
         const avgCalories = data.length > 0
             ? Math.round(data.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / data.length)
             : 0;
@@ -363,7 +411,7 @@ export class HabitInsightsService {
         data: AggregatedDayData[],
         analysis: AnalysisResult
     ): HabitInsightResponseDto {
-        const totalMeals = data.reduce((sum, d) => sum + d.mealCount, 0);
+        const totalMeals = data.reduce((sum, d) => sum + (d.mealCount || 0), 0);
         const avgCalories = data.length > 0
             ? Math.round(data.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / data.length)
             : 0;
@@ -499,6 +547,9 @@ export class HabitInsightsService {
         const history: Array<{ month: string; score: number; trend: string }> = [];
         const today = new Date();
 
+        // Get user targets once (optimization - targets don't change per month)
+        const targets = await this.getUserTargets(userId);
+
         // Generate monthly scores for the requested period
         for (let i = months - 1; i >= 0; i--) {
             const monthDate = new Date(today);
@@ -518,7 +569,13 @@ export class HabitInsightsService {
 
             if (nutritionData.length > 0) {
                 const aggregatedData = this.aggregateData(nutritionData);
-                const targets = await this.getUserTargets(userId);
+                
+                // Safety check for aggregated data
+                if (aggregatedData.length === 0) {
+                    this.logger.warn(`Empty aggregation for month ${monthStr}`);
+                    continue;
+                }
+                
                 const patterns = PatternDetector.detectPatterns(aggregatedData, targets);
 
                 const score = HealthScoreCalculator.calculate(
