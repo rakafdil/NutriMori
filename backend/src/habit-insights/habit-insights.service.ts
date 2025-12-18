@@ -69,6 +69,19 @@ export class HabitInsightsService {
         // Aggregate data per day
         const aggregatedData = this.aggregateData(nutritionData);
 
+        // Safety check: Ensure aggregation produced meaningful data
+        if (aggregatedData.length === 0) {
+            this.logger.warn(`Aggregation produced empty data for user ${userId}`);
+            return this.buildEmptyResponse(userId, period, dateRange);
+        }
+
+        // Additional check: Ensure we have meals
+        const totalMealsCheck = aggregatedData.reduce((sum, d) => sum + (d.mealCount || 0), 0);
+        if (totalMealsCheck === 0) {
+            this.logger.warn(`No meals found after aggregation for user ${userId}`);
+            return this.buildEmptyResponse(userId, period, dateRange);
+        }
+
         // Generate data hash for cache validation
         const dataHash = CacheManager.generateDataHash(aggregatedData);
 
@@ -179,16 +192,28 @@ export class HabitInsightsService {
 
         // Filter in-memory by food_logs.created_at
         const data = (rawData || []).filter((record: any) => {
-            if (!record.food_logs?.created_at) {
+            // Handle both array and object food_logs
+            const foodLogs = Array.isArray(record.food_logs) ? record.food_logs[0] : record.food_logs;
+            
+            if (!foodLogs?.created_at) {
                 this.logger.warn(`Record ${record.id} missing food_logs.created_at`);
                 return false;
             }
             
-            const logDate = new Date(record.food_logs.created_at);
-            return logDate >= startDate && logDate <= endDate;
+            // Use UTC for date comparison to avoid timezone issues
+            const logDate = new Date(foodLogs.created_at);
+            const isInRange = logDate >= startDate && logDate <= endDate;
+            
+            if (!isInRange) {
+                this.logger.debug(`Record ${record.id} date ${logDate.toISOString()} outside range`);
+            }
+            
+            return isInRange;
         }).sort((a: any, b: any) => {
-            const dateA = new Date(a.food_logs.created_at).getTime();
-            const dateB = new Date(b.food_logs.created_at).getTime();
+            const foodLogsA = Array.isArray(a.food_logs) ? a.food_logs[0] : a.food_logs;
+            const foodLogsB = Array.isArray(b.food_logs) ? b.food_logs[0] : b.food_logs;
+            const dateA = new Date(foodLogsA.created_at).getTime();
+            const dateB = new Date(foodLogsB.created_at).getTime();
             return dateA - dateB;
         });
 
@@ -283,8 +308,8 @@ export class HabitInsightsService {
         aggregatedData: AggregatedDayData[],
         analysis: AnalysisResult
     ): Promise<void> {
-        // Calculate metrics for cache
-        const totalMeals = aggregatedData.reduce((sum, d) => sum + d.mealCount, 0);
+        // Calculate metrics for cache with null safety
+        const totalMeals = aggregatedData.reduce((sum, d) => sum + (d.mealCount || 0), 0);
         const avgCalories = aggregatedData.length > 0
             ? Math.round(aggregatedData.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / aggregatedData.length)
             : 0;
@@ -326,8 +351,8 @@ export class HabitInsightsService {
             }
         );
 
-        // Calculate metrics
-        const totalMeals = data.reduce((sum, d) => sum + d.mealCount, 0);
+        // Calculate metrics with null safety
+        const totalMeals = data.reduce((sum, d) => sum + (d.mealCount || 0), 0);
         const avgCalories = data.length > 0
             ? Math.round(data.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / data.length)
             : 0;
@@ -386,7 +411,7 @@ export class HabitInsightsService {
         data: AggregatedDayData[],
         analysis: AnalysisResult
     ): HabitInsightResponseDto {
-        const totalMeals = data.reduce((sum, d) => sum + d.mealCount, 0);
+        const totalMeals = data.reduce((sum, d) => sum + (d.mealCount || 0), 0);
         const avgCalories = data.length > 0
             ? Math.round(data.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / data.length)
             : 0;
