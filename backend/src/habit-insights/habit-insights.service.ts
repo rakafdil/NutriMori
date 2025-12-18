@@ -69,6 +69,13 @@ export class HabitInsightsService {
         // Aggregate data per day
         const aggregatedData = this.aggregateData(nutritionData);
 
+        // Double-check: if aggregation results in no meaningful data, return empty response
+        const totalMeals = aggregatedData.reduce((sum, d) => sum + d.mealCount, 0);
+        if (aggregatedData.length === 0 || totalMeals === 0) {
+            this.logger.warn(`No meaningful data after aggregation for user ${userId}`);
+            return this.buildEmptyResponse(userId, period, dateRange);
+        }
+
         // Generate data hash for cache validation
         const dataHash = CacheManager.generateDataHash(aggregatedData);
 
@@ -141,7 +148,7 @@ export class HabitInsightsService {
         this.logger.debug(`Fetching nutrition data for user ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
         // Get data from nutrition_analysis table
-        // Filter by nutrition_analysis.created_at (more reliable than nested filter)
+        // Filter by food_logs.created_at to match when food was actually logged
         const { data, error } = await supabase
             .from('nutrition_analysis')
             .select(`
@@ -161,7 +168,7 @@ export class HabitInsightsService {
                 warnings,
                 created_at,
                 updated_at,
-                food_logs(
+                food_logs!inner(
                     log_id,
                     user_id,
                     meal_type,
@@ -169,9 +176,9 @@ export class HabitInsightsService {
                 )
             `)
             .eq('user_id', userId)
-            .gte('created_at', startDate.toISOString())
-            .lte('created_at', endDate.toISOString())
-            .order('created_at', { ascending: true });
+            .gte('food_logs.created_at', startDate.toISOString())
+            .lte('food_logs.created_at', endDate.toISOString())
+            .order('food_logs.created_at', { ascending: true });
 
         if (error) {
             this.logger.error(`Failed to fetch nutrition analysis: ${error.message}`);
