@@ -547,6 +547,9 @@ export class HabitInsightsService {
         const history: Array<{ month: string; score: number; trend: string }> = [];
         const today = new Date();
 
+        // Get user targets once (optimization - targets don't change per month)
+        const targets = await this.getUserTargets(userId);
+
         // Generate monthly scores for the requested period
         for (let i = months - 1; i >= 0; i--) {
             const monthDate = new Date(today);
@@ -566,7 +569,13 @@ export class HabitInsightsService {
 
             if (nutritionData.length > 0) {
                 const aggregatedData = this.aggregateData(nutritionData);
-                const targets = await this.getUserTargets(userId);
+                
+                // Safety check for aggregated data
+                if (aggregatedData.length === 0) {
+                    this.logger.warn(`Empty aggregation for month ${monthStr}`);
+                    continue;
+                }
+                
                 const patterns = PatternDetector.detectPatterns(aggregatedData, targets);
 
                 const score = HealthScoreCalculator.calculate(
