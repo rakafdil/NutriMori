@@ -141,8 +141,10 @@ export class HabitInsightsService {
         this.logger.debug(`Fetching nutrition data for user ${userId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
 
         // Get data from nutrition_analysis table
-        // Filter by nutrition_analysis.created_at (more reliable than nested filter)
-        const { data, error } = await supabase
+        // IMPORTANT: Supabase nested column filters are unreliable, so we:
+        // 1. Fetch all user data with inner join to food_logs
+        // 2. Filter in-memory by food_logs.created_at
+        const { data: rawData, error } = await supabase
             .from('nutrition_analysis')
             .select(`
                 id,
@@ -161,25 +163,37 @@ export class HabitInsightsService {
                 warnings,
                 created_at,
                 updated_at,
-                food_logs(
+                food_logs!inner(
                     log_id,
                     user_id,
                     meal_type,
                     created_at
                 )
             `)
-            .eq('user_id', userId)
-            .gte('created_at', startDate.toISOString())
-            .lte('created_at', endDate.toISOString())
-            .order('created_at', { ascending: true });
+            .eq('user_id', userId);
 
         if (error) {
             this.logger.error(`Failed to fetch nutrition analysis: ${error.message}`);
             return [];
         }
 
+        // Filter in-memory by food_logs.created_at
+        const data = (rawData || []).filter((record: any) => {
+            if (!record.food_logs?.created_at) {
+                this.logger.warn(`Record ${record.id} missing food_logs.created_at`);
+                return false;
+            }
+            
+            const logDate = new Date(record.food_logs.created_at);
+            return logDate >= startDate && logDate <= endDate;
+        }).sort((a: any, b: any) => {
+            const dateA = new Date(a.food_logs.created_at).getTime();
+            const dateB = new Date(b.food_logs.created_at).getTime();
+            return dateA - dateB;
+        });
+
         if (data?.length) {
-            this.logger.debug(`Found ${data.length} nutrition analysis records for user ${userId}`);
+            this.logger.debug(`Found ${data.length} nutrition analysis records for user ${userId} (filtered from ${rawData?.length || 0} total)`);
             return data as NutritionAnalysisRecord[];
         }
 
@@ -269,6 +283,12 @@ export class HabitInsightsService {
         aggregatedData: AggregatedDayData[],
         analysis: AnalysisResult
     ): Promise<void> {
+        // Calculate metrics for cache
+        const totalMeals = aggregatedData.reduce((sum, d) => sum + d.mealCount, 0);
+        const avgCalories = aggregatedData.length > 0
+            ? Math.round(aggregatedData.reduce((sum, d) => sum + (d.totalCalories || 0), 0) / aggregatedData.length)
+            : 0;
+
         await this.cacheManager.saveToCache(
             userId,
             period as any,
@@ -277,7 +297,10 @@ export class HabitInsightsService {
             analysis.summary,
             analysis.recommendations,
             analysis.healthScore,
-            dataHash
+            dataHash,
+            aggregatedData.length,
+            totalMeals,
+            avgCalories
         );
     }
 

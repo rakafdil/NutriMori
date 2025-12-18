@@ -62,6 +62,9 @@ export class CacheManager {
         recommendations: string[],
         healthScore: number,
         dataHash: string,
+        daysAnalyzed?: number,
+        totalMeals?: number,
+        averageCalories?: number,
     ): Promise<void> {
         const expiryDays = CACHE_EXPIRY_DAYS[period as keyof typeof CACHE_EXPIRY_DAYS];
         const expiresAt = new Date();
@@ -78,6 +81,9 @@ export class CacheManager {
                 recommendations,
                 health_score: healthScore,
                 data_hash: dataHash,
+                days_analyzed: daysAnalyzed,
+                total_meals: totalMeals,
+                average_calories: averageCalories,
                 expires_at: expiresAt.toISOString(),
             },
             {
