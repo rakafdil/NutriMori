@@ -131,8 +131,14 @@ export const CACHE_EXPIRY_DAYS: Record<PeriodType, number> = {
 // ============ GEMINI CONFIG ============
 
 export const GEMINI_CONFIG = {
-    // Updated to gemini-2.0-flash-lite (more quota-friendly)
+    // Model endpoint (change to desired generative model)
     endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent',
     temperature: 0.7,
     maxOutputTokens: 400,
+    // Base prompt (immutable rule-based token) used when data is insufficient
+    basePrompt: 'Balas JSON:{"s":"ringkasan 1-2 kalimat bahasa Indonesia","r":["3 saran singkat"]}',
+    // Estimated tokens for the base prompt (approximate)
+    basePromptEstimatedInputTokens: 8,
+    // Minimum token budget required to call Gemini (input + expected output)
+    minTokenBudget: 64,
 };

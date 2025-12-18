@@ -410,6 +410,35 @@ export class HabitInsightsService {
         period: PeriodType,
         dateRange: { start: string; end: string }
     ): HabitInsightResponseDto {
+        // Format date range untuk display
+        const startDate = new Date(dateRange.start);
+        const endDate = new Date(dateRange.end);
+        const dateFormatter = new Intl.DateTimeFormat('id-ID', { 
+            day: 'numeric', 
+            month: 'short', 
+            year: 'numeric' 
+        });
+        const startFormatted = dateFormatter.format(startDate);
+        const endFormatted = dateFormatter.format(endDate);
+
+        // Period labels
+        const periodLabels: Record<PeriodType, string> = {
+            [PeriodType.WEEKLY]: 'minggu ini',
+            [PeriodType.MONTHLY]: 'bulan ini',
+            [PeriodType.YEARLY]: 'tahun ini',
+            [PeriodType.OVERALL]: 'periode keseluruhan',
+        };
+
+        // Dynamic summary and recommendations
+        const periodLabel = periodLabels[period] || 'periode ini';
+        const summary = `Belum ada data makanan untuk ${periodLabel} (${startFormatted} - ${endFormatted}). Mulai catat makanan Anda untuk mendapatkan insight kesehatan yang personal.`;
+        
+        const recommendations = [
+            'Catat setiap makanan dan minuman yang Anda konsumsi.',
+            'Pastikan mencatat porsi dengan akurat untuk analisis yang lebih baik.',
+            'Lakukan pencatatan rutin minimal 3 hari untuk mendapat insight pertama.',
+        ];
+
         return {
             userId,
             period,
@@ -418,8 +447,8 @@ export class HabitInsightsService {
             totalMeals: 0,
             averageCalories: 0,
             patterns: [],
-            summary: 'Belum ada data makanan untuk periode ini.',
-            recommendations: ['Mulai catat makanan Anda untuk mendapatkan insight kesehatan.'],
+            summary,
+            recommendations,
             healthScore: 0,
             generatedAt: new Date().toISOString(),
         };

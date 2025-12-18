@@ -90,23 +90,54 @@ export class GeminiClient {
         patterns: HabitPatternDto[],
         context: InsightContext,
     ): Promise<AiInsightResult> {
+        // Determine if we must use base token (rule): data days < 3
+        const dataDays = data?.length || context.daysCount || 0;
+
+        // If not configured, always fallback (no Gemini call)
         if (!this.isConfigured()) {
             this.logger.warn('Gemini API key not configured, using fallback');
-            return this.generateFallback(patterns, data, context);
+            return this.generateFallback(patterns, dataDays < 3 ? undefined : data, context);
         }
 
         // Build minimal pattern summary (just count positive/negative)
         const negCount = patterns.filter(p => p.type === 'negative').length;
         const posCount = patterns.filter(p => p.type === 'positive').length;
-        const patternSummary = negCount > 0 || posCount > 0 
-            ? `+${posCount}/-${negCount}pola` 
+        const patternSummary = negCount > 0 || posCount > 0
+            ? `+${posCount}/-${negCount}pola`
             : '';
 
-        const prompt = buildMinimalPrompt(context, patternSummary);
-        
-        // Log token estimate for debugging
-        const estimatedTokens = Math.ceil(prompt.length / 4);
-        this.logger.debug(`Prompt tokens (est): ${estimatedTokens}`);
+        // Decide prompt strategy according to rules:
+        // - If dataDays < 3 => use basePrompt (immutable) and DO NOT include data
+        // - Else => use buildMinimalPrompt (may include metrics)
+        const useBasePrompt = dataDays < 3;
+        const prompt = useBasePrompt
+            ? GEMINI_CONFIG.basePrompt
+            : buildMinimalPrompt(context, patternSummary);
+
+        // Estimate token usage = input estimate + expected output tokens
+        const estimatedInputTokens = Math.ceil(prompt.length / 4);
+        const estimatedTotalTokens = estimatedInputTokens + (GEMINI_CONFIG.maxOutputTokens || 0);
+        this.logger.debug(`Estimated tokens (input): ${estimatedInputTokens}, total: ${estimatedTotalTokens}`);
+
+        // Determine remaining token budget from env or default; must be > estimatedTotalTokens
+        // WARNING: Token budget is read from env var but never updated after API calls.
+        // This requires proper implementation with database/Redis for production use.
+        const tokenRemainingEnv = process.env.GEMINI_TOKEN_REMAINING;
+        const tokenRemainingParsed = tokenRemainingEnv ? Number(tokenRemainingEnv) : NaN;
+        const tokenRemaining = !isNaN(tokenRemainingParsed) ? tokenRemainingParsed : undefined;
+        const minBudget = GEMINI_CONFIG.minTokenBudget || 0;
+
+        // Validate token budget before calling Gemini
+        const tokenValid = typeof tokenRemaining === 'number' && !isNaN(tokenRemaining)
+            ? tokenRemaining > Math.max(estimatedTotalTokens, minBudget)
+            : true; // if unknown, allow (best-effort)
+
+        // If token not valid, do not call Gemini; use fallback with base prompt only
+        if (!tokenValid) {
+            this.logger.warn('Insufficient token budget for Gemini call, using fallback');
+            // Fallback must be based-only on base token (no data recalculation)
+            return this.generateFallback(patterns, undefined, context);
+        }
 
         // Retry logic for rate limiting
         const maxRetries = 2;
@@ -139,7 +170,9 @@ export class GeminiClient {
                 }
 
                 if (!response.ok) {
-                    this.logger.error(`Gemini API error: ${response.status}`);
+                    const errorBody = await response.text().catch(() => 'Unable to read error body');
+                    this.logger.error(`Gemini API error: ${response.status} - ${response.statusText}`);
+                    this.logger.debug(`Error details: ${errorBody}`);
                     return this.generateFallback(patterns, data, context);
                 }
 
@@ -151,17 +184,24 @@ export class GeminiClient {
                     return parsed;
                 }
 
+                // If parsing fails, use fallback with available data
+                this.logger.warn('Failed to parse Gemini response, using fallback');
+                this.logger.debug(`Raw response: ${text.substring(0, 200)}`);
                 return this.generateFallback(patterns, data, context);
             } catch (error) {
                 lastError = error as Error;
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                 if (attempt < maxRetries) {
-                    this.logger.warn(`API call failed, retrying... (${attempt + 1}/${maxRetries})`);
+                    this.logger.warn(`API call failed: ${errorMessage}, retrying... (${attempt + 1}/${maxRetries})`);
                     await this.sleep(1000);
+                } else {
+                    this.logger.error(`API call failed on final attempt: ${errorMessage}`);
                 }
             }
         }
 
-        this.logger.error(`Gemini API call failed after retries: ${lastError}`);
+        const errorDetail = lastError instanceof Error ? `${lastError.message}\n${lastError.stack}` : String(lastError);
+        this.logger.error(`Gemini API call failed after ${maxRetries} retries: ${errorDetail}`);
         return this.generateFallback(patterns, data, context);
     }
 
@@ -177,16 +217,32 @@ export class GeminiClient {
      * healthScore is calculated locally, not from AI
      */
     private parseAiResponse(text: string): AiInsightResult | null {
+        if (!text || text.trim().length === 0) {
+            this.logger.warn('Empty response text received from Gemini');
+            return null;
+        }
+
         const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) return null;
+        if (!jsonMatch) {
+            this.logger.warn('No JSON found in Gemini response');
+            return null;
+        }
 
         try {
             const parsed = JSON.parse(jsonMatch[0]);
-            return {
-                summary: parsed.s || parsed.summary || '',
-                recommendations: parsed.r || parsed.recommendations || [],
-            };
-        } catch {
+            const summary = parsed.s || parsed.summary || '';
+            const recommendations = parsed.r || parsed.recommendations || [];
+
+            // Validate that we have meaningful data
+            if (!summary || !Array.isArray(recommendations) || recommendations.length === 0) {
+                this.logger.warn('Parsed JSON missing required fields (s or r)');
+                return null;
+            }
+
+            return { summary, recommendations };
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.warn(`Failed to parse JSON from Gemini response: ${errorMsg}`);
             return null;
         }
     }
@@ -205,8 +261,9 @@ export class GeminiClient {
 
         // Build summary based on patterns and data
         let summary = '';
+        const dataLength = data?.length || 0;
         
-        if (data && data.length < 3) {
+        if (dataLength < 3) {
             summary = FALLBACK_SUMMARIES.limited;
         } else if (negativePatterns.length > positivePatterns.length) {
             summary = FALLBACK_SUMMARIES.needsWork;
