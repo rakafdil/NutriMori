@@ -4,6 +4,7 @@ import { Send, Bot, User, Sparkles } from "lucide-react";
 // Pastikan menggunakan library yang sesuai, biasanya @google/generative-ai untuk web client
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ChatMessage } from "@/types";
+import ReactMarkdown from "react-markdown";
 
 // Inisialisasi di luar komponen untuk mencegah re-init
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_API_KEY as string);
@@ -58,7 +59,6 @@ const ChatContent: React.FC = () => {
         model: "gemini-2.5-flash-lite", // Gunakan flash untuk hemat biaya & token
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 250, // Tambahkan ini agar panjang jawaban pas
         },
       });
 
@@ -196,7 +196,11 @@ const ChatContent: React.FC = () => {
                       : "bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 text-gray-700 dark:text-gray-200 rounded-tl-none"
                   }`}
                 >
-                  {msg.text}
+                  {msg.role === "model" ? (
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  ) : (
+                    msg.text
+                  )}
                 </div>
               </div>
             </div>

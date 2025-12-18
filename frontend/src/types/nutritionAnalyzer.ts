@@ -22,8 +22,8 @@ export interface NutritionAnalysisResponse {
   nutritionFacts: NutritionFacts;
   micronutrients: Record<string, string>;
   healthTags: string[];
-  analysisNotes?: string; // Optional karena tidak selalu ada di list history
-  warnings?: string[]; // Optional karena tidak selalu ada di list history
+  analysisNotes?: string;
+  warnings?: string[];
   createdAt: string;
   updatedAt?: string | null;
 }

@@ -8,234 +8,149 @@ interface NutritionBreakdownProps {
   limit: LimitIntakes;
 }
 
-const parseNumeric = (v: any): number => {
-  if (v == null) return 0;
-  if (typeof v === "number") return v;
-  if (typeof v === "string") {
-    const n = parseFloat(v.replace(/[^\d.-]/g, ""));
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
+const parseNumeric = (v: unknown): number => {
+  const n =
+    typeof v === "number"
+      ? v
+      : typeof v === "string"
+      ? parseFloat(v.replace(/[^\d.-]/g, ""))
+      : 0;
+
+  return Number.isFinite(n) ? n : 0;
 };
 
-const roundTo2 = (val: number): number => Math.round(val * 100) / 100;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const clampPercent = (p: number) => Math.min(Math.max(p, 2), 98);
 
 const NutritionBreakdown: React.FC<NutritionBreakdownProps> = ({
   meals,
   limit,
 }) => {
-  const totalCalories = meals.reduce(
-    (a, b) => a + parseNumeric(b.nutrition?.calories),
-    0
-  );
-  const totalProtein = meals.reduce(
-    (a, b) => a + parseNumeric(b.nutrition?.protein),
-    0
-  );
-  const totalCarbs = meals.reduce(
-    (a, b) => a + parseNumeric(b.nutrition?.carbs),
-    0
-  );
-  const totalFats = meals.reduce(
-    (a, b) => a + parseNumeric(b.nutrition?.fat),
-    0
-  );
-  const totalFiber = meals.reduce(
-    (a, b) => a + parseNumeric(b.nutrition?.fiber),
-    0
-  );
-  const totalSugar = meals.reduce(
-    (a, b) => a + parseNumeric(b.nutrition?.sugar),
-    0
+  const totals = meals.reduce(
+    (acc, m) => {
+      const n = m.nutrition;
+      acc.calories += parseNumeric(n?.calories);
+      acc.protein += parseNumeric(n?.protein);
+      acc.carbs += parseNumeric(n?.carbs);
+      acc.fat += parseNumeric(n?.fat);
+      acc.fiber += parseNumeric(n?.fiber);
+      acc.sugar += parseNumeric(n?.sugar);
+      return acc;
+    },
+    {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      fiber: 0,
+      sugar: 0,
+    }
   );
 
-  const caloriesPercent = Math.min(
-    (totalCalories / limit.max_calories) * 100,
-    100
-  );
-  const proteinPercent = Math.min(
-    (totalProtein / limit.max_protein) * 100,
-    100
-  );
-  const carbsPercent = Math.min((totalCarbs / limit.max_carbs) * 100, 100);
-  const fatPercent = Math.min((totalFats / limit.max_fat) * 100, 100);
-  const fiberPercent = Math.min((totalFiber / limit.max_fiber) * 100, 100);
-  const sugarPercent = Math.min((totalSugar / limit.max_sugar) * 100, 100);
+  const nutrients = [
+    {
+      key: "calories",
+      label: "Calories",
+      unit: "kcal",
+      color: "bg-green-500",
+      limit: limit.max_calories,
+    },
+    {
+      key: "protein",
+      label: "Protein",
+      unit: "g",
+      color: "bg-blue-500",
+      limit: limit.max_protein,
+    },
+    {
+      key: "carbs",
+      label: "Carbs",
+      unit: "g",
+      color: "bg-orange-500",
+      limit: limit.max_carbs,
+    },
+    {
+      key: "fat",
+      label: "Fat",
+      unit: "g",
+      color: "bg-yellow-500",
+      limit: limit.max_fat,
+    },
+    {
+      key: "fiber",
+      label: "Fiber",
+      unit: "g",
+      color: "bg-purple-500",
+      limit: limit.max_fiber,
+    },
+    {
+      key: "sugar",
+      label: "Sugar",
+      unit: "g",
+      color: "bg-red-500",
+      limit: limit.max_sugar,
+    },
+  ] as const;
 
   const clampPos = (p: number) => `${Math.min(Math.max(p, 2), 98)}%`;
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 h-full transition-colors">
+    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
       <h3 className="font-bold text-gray-800 dark:text-white mb-4">
         Nutrition Breakdown
       </h3>
       <div className="space-y-4">
-        {/* Calories */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Calories</span>
-            <span className="font-bold text-gray-800 dark:text-gray-200">
-              {roundTo2(totalCalories)} kcal
-            </span>
-          </div>
+        {nutrients.map(({ key, label, unit, color, limit }) => {
+          const value = totals[key];
 
-          {/* outer wrapper (no overflow-hidden) so tooltip is not clipped */}
-          <div className="relative group">
-            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-500 transition-all duration-300"
-                style={{ width: `${caloriesPercent}%` }}
-                title={`${roundTo2(caloriesPercent)}%`}
-              />
-            </div>
+          const percent = Math.min((value / limit) * 100, 100);
+          const percentFull = (value / limit) * 100;
 
-            <div
-              className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
-              style={{ left: `calc(${clampPos(caloriesPercent)} - 16px)` }}
-            >
-              {roundTo2(caloriesPercent)}%
-            </div>
-          </div>
-        </div>
+          return (
+            <div key={key} className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span
+                  className={`${
+                    percent >= 100
+                      ? "text-red-500 dark:text-red-400"
+                      : "text-gray-500 dark:text-gray-400"
+                  }`}
+                >
+                  {label}
+                </span>
+                <span
+                  className={`font-bold ${
+                    percent >= 100
+                      ? "text-red-800 dark:text-red-200"
+                      : "text-gray-800 dark:text-gray-200"
+                  }`}
+                >
+                  {round2(value)}
+                  {unit}
+                </span>
+              </div>
 
-        {/* Protein */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Protein</span>
-            <span className="font-bold text-gray-800 dark:text-gray-200">
-              {roundTo2(totalProtein)}g
-            </span>
-          </div>
+              <div className="relative group">
+                <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${color} transition-all duration-300`}
+                    style={{ width: `${percent}%` }}
+                    title={`${round2(percent)}%`}
+                  />
+                </div>
 
-          <div className="relative group">
-            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-500 transition-all duration-300"
-                style={{ width: `${proteinPercent}%` }}
-                title={`${roundTo2(proteinPercent)}%`}
-              />
-            </div>
-
-            <div
-              className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
-              style={{ left: `calc(${clampPos(proteinPercent)} - 16px)` }}
-            >
-              {roundTo2(proteinPercent)}%
-            </div>
-          </div>
-        </div>
-
-        {/* Carbs */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Carbs</span>
-            <span className="font-bold text-gray-800 dark:text-gray-200">
-              {roundTo2(totalCarbs)}g
-            </span>
-          </div>
-
-          <div className="relative group">
-            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-orange-500 transition-all duration-300"
-                style={{ width: `${carbsPercent}%` }}
-                title={`${roundTo2(carbsPercent)}%`}
-              />
-            </div>
-
-            <div
-              className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
-              style={{ left: `calc(${clampPos(carbsPercent)} - 16px)` }}
-            >
-              {roundTo2(carbsPercent)}%
-            </div>
-          </div>
-        </div>
-
-        {/* Fat */}
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Fat</span>
-            <span className="font-bold text-gray-800 dark:text-gray-200">
-              {roundTo2(totalFats)}g
-            </span>
-          </div>
-
-          <div className="relative group">
-            <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-yellow-500 transition-all duration-300"
-                style={{ width: `${fatPercent}%` }}
-                title={`${roundTo2(fatPercent)}%`}
-              />
-            </div>
-
-            <div
-              className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
-              style={{ left: `calc(${clampPos(fatPercent)} - 16px)` }}
-            >
-              {roundTo2(fatPercent)}%
-            </div>
-          </div>
-        </div>
-
-        {/* Fiber */}
-        {totalFiber > 0 && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Fiber</span>
-              <span className="font-bold text-gray-800 dark:text-gray-200">
-                {roundTo2(totalFiber)}g
-              </span>
-            </div>
-
-            <div className="relative group">
-              <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-purple-500 transition-all duration-300"
-                  style={{ width: `${fiberPercent}%` }}
-                  title={`${roundTo2(fiberPercent)}%`}
-                />
-              </div>
-
-              <div
-                className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
-                style={{ left: `calc(${clampPos(fiberPercent)} - 16px)` }}
-              >
-                {roundTo2(fiberPercent)}%
+                  className={`absolute -top-7 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 ${
+                    percentFull > 100 ? "text-red-600" : "text-white"
+                  } px-2 py-1 rounded pointer-events-none z-10`}
+                  style={{ left: `calc(${clampPercent(percentFull)}% - 16px)` }}
+                >
+                  {round2(percentFull)}%
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Sugar */}
-        {totalSugar > 0 && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">Sugar</span>
-              <span className="font-bold text-gray-800 dark:text-gray-200">
-                {roundTo2(totalSugar)}g
-              </span>
-            </div>
-
-            <div className="relative group">
-              <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-red-500 transition-all duration-300"
-                  style={{ width: `${sugarPercent}%` }}
-                  title={`${roundTo2(sugarPercent)}%`}
-                />
-              </div>
-
-              <div
-                className="absolute -top-7 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-xs bg-gray-900 text-white px-2 py-1 rounded pointer-events-none z-10"
-                style={{ left: `calc(${clampPos(sugarPercent)} - 16px)` }}
-              >
-                {roundTo2(sugarPercent)}%
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })}
       </div>
     </div>
   );
