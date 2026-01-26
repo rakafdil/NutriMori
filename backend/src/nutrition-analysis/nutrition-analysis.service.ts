@@ -1,15 +1,15 @@
 import {
-    BadRequestException,
-    Injectable,
-    Logger,
-    NotFoundException,
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase';
 import {
-    CreateNutritionAnalysisDto,
-    MicronutrientsDto,
-    NutritionAnalysisResponseDto,
-    NutritionFactsNumericDto,
+  CreateNutritionAnalysisDto,
+  MicronutrientsDto,
+  NutritionAnalysisResponseDto,
+  NutritionFactsNumericDto,
 } from './dto';
 
 interface FoodLogItem {
@@ -140,13 +140,14 @@ export class NutritionAnalysisService {
 
     const { data: logData, error: logError } = await supabase
       .from('food_logs')
-      .select('user_id')
+      .select('user_id, meal_type')
       .eq('log_id', foodLogId)
       .single();
 
     if (logError || !logData) throw new NotFoundException('Food log not found');
 
     const targetUserId = logData.user_id;
+    const mealType = (logData as any).meal_type || 'lunch';
 
     const foodLogItems = await this.getFoodLogItems(foodLogId);
     if (foodLogItems.length === 0)
@@ -215,11 +216,22 @@ export class NutritionAnalysisService {
       .single();
 
     if (error) throw new BadRequestException(error.message);
+
+    // Calculate budget analysis if user has set daily_budget
+    const budgetAnalysis = await this.calculateBudgetAnalysis(
+      targetUserId,
+      foodLogItems,
+      nutritionData,
+      mealType,
+      preferences,
+    );
+
     return this.formatResponse(
       data,
       totalNutrition,
       micronutrients,
       macroRatio,
+      budgetAnalysis,
     );
   }
 
@@ -831,6 +843,7 @@ export class NutritionAnalysisService {
     n: NutritionFactsNumericDto,
     micro: MicronutrientsDto,
     macroRatio?: { protein: number; carbs: number; fat: number },
+    budgetAnalysis?: any,
   ): NutritionAnalysisResponseDto {
     const createdAt = data?.created_at ? new Date(data.created_at) : new Date();
     const updatedAt = data?.updated_at ? new Date(data.updated_at) : undefined;
@@ -855,6 +868,7 @@ export class NutritionAnalysisService {
       micronutrients: micro,
       healthTags: data.health_tags || [],
       warnings: data.warnings || [],
+      budgetAnalysis,
       createdAt,
       updatedAt,
     };
@@ -878,5 +892,216 @@ export class NutritionAnalysisService {
       const n = map.get(String(item.food_id));
       return n?.sugar_estimated === true;
     });
+  }
+
+  // ============ BUDGET ANALYSIS METHODS ============
+
+  /**
+   * Get budget tier based on daily budget (IDR)
+   */
+  private getBudgetTier(dailyBudget: number): string {
+    if (dailyBudget <= 25000) return 'very_low';
+    if (dailyBudget <= 40000) return 'low';
+    if (dailyBudget <= 60000) return 'medium';
+    if (dailyBudget <= 100000) return 'high';
+    return 'very_high';
+  }
+
+  /**
+   * Get meal allocation percentage based on meal type
+   */
+  private getMealAllocation(mealType: string): number {
+    const allocations: Record<string, number> = {
+      breakfast: 0.25,
+      lunch: 0.35,
+      dinner: 0.30,
+      snack: 0.10,
+    };
+    return allocations[mealType.toLowerCase()] || 0.25;
+  }
+
+  /**
+   * Calculate budget analysis for a meal
+   */
+  private async calculateBudgetAnalysis(
+    userId: string,
+    foodLogItems: FoodLogItem[],
+    nutritionData: Map<string, FoodNutrient>,
+    mealType: string,
+    preferences: UserPreferences | null,
+  ): Promise<any | undefined> {
+    const dailyBudget = preferences?.daily_budget;
+    
+    // If user hasn't set a budget, skip budget analysis
+    if (!dailyBudget || dailyBudget <= 0) {
+      return undefined;
+    }
+
+    // Get food prices
+    const foodIds = foodLogItems.map((item) => item.food_id);
+    const prices = await this.getFoodPrices(foodIds);
+
+    // Calculate estimated cost
+    let estimatedCost = 0;
+    for (const item of foodLogItems) {
+      const price = prices.get(String(item.food_id));
+      if (price) {
+        // Price is per 100g, calculate based on gram_weight
+        const priceForItem = (price.price_per_100g / 100) * item.gram_weight;
+        estimatedCost += priceForItem;
+      } else {
+        // Fallback: estimate based on calories (rough estimate)
+        const nutrient = nutritionData.get(String(item.food_id));
+        if (nutrient) {
+          // Rough estimate: 1 calorie ≈ Rp 10-15
+          estimatedCost += nutrient.calories * 12 * (item.gram_weight / 100);
+        }
+      }
+    }
+
+    estimatedCost = Math.round(estimatedCost);
+
+    // Calculate allocated budget based on meal type
+    const allocation = this.getMealAllocation(mealType);
+    const allocatedBudget = Math.round(dailyBudget * allocation);
+
+    // Calculate budget utilization
+    const budgetUtilization = allocatedBudget > 0
+      ? Math.round((estimatedCost / allocatedBudget) * 100)
+      : 0;
+
+    // Get budget tier
+    const budgetTier = this.getBudgetTier(dailyBudget);
+
+    // Generate warnings and tips based on budget rules
+    const { budgetWarnings, budgetTips } = this.generateBudgetRulesAnalysis(
+      dailyBudget,
+      estimatedCost,
+      allocatedBudget,
+      mealType,
+      budgetTier,
+    );
+
+    return {
+      estimatedCost,
+      allocatedBudget,
+      dailyBudget,
+      isWithinBudget: estimatedCost <= allocatedBudget,
+      budgetUtilization,
+      budgetTier,
+      budgetWarnings: budgetWarnings.length > 0 ? budgetWarnings : undefined,
+      budgetTips: budgetTips.length > 0 ? budgetTips : undefined,
+    };
+  }
+
+  /**
+   * Generate budget warnings and tips based on rules
+   */
+  private generateBudgetRulesAnalysis(
+    dailyBudget: number,
+    estimatedCost: number,
+    allocatedBudget: number,
+    mealType: string,
+    budgetTier: string,
+  ): { budgetWarnings: string[]; budgetTips: string[] } {
+    const budgetWarnings: string[] = [];
+    const budgetTips: string[] = [];
+    const mealName = this.getMealTypeName(mealType);
+
+    // Budget warnings
+    if (estimatedCost > allocatedBudget) {
+      budgetWarnings.push(
+        `Pengeluaran melebihi alokasi budget ${this.formatCurrency(allocatedBudget)} untuk ${mealName}`,
+      );
+    } else if (estimatedCost > allocatedBudget * 0.9) {
+      budgetWarnings.push('Pengeluaran mendekati batas budget yang dialokasikan');
+    }
+
+    // Budget tips based on tier and utilization
+    if (budgetTier === 'very_low') {
+      if (estimatedCost > allocatedBudget * 0.8) {
+        budgetTips.push('Coba protein nabati seperti tempe atau tahu yang lebih terjangkau');
+        budgetTips.push('Beli bahan mentah dan masak sendiri untuk menghemat');
+        budgetTips.push('Pilih sayuran lokal musiman yang lebih murah');
+      }
+    } else if (budgetTier === 'low') {
+      if (estimatedCost > allocatedBudget * 0.8) {
+        budgetTips.push('Kombinasikan protein hewani dan nabati untuk efisiensi budget');
+        budgetTips.push('Pertimbangkan meal prep untuk beberapa hari');
+        budgetTips.push('Bawa bekal dari rumah untuk menghemat');
+      }
+    } else if (budgetTier === 'medium') {
+      if (estimatedCost > allocatedBudget * 0.9) {
+        budgetTips.push('Pilih paket hemat jika makan di luar');
+        budgetTips.push('Kombinasikan makan di rumah dan di luar');
+      }
+    } else if (budgetTier === 'high' || budgetTier === 'very_high') {
+      if (estimatedCost <= allocatedBudget * 0.5) {
+        budgetTips.push('Budget masih tersisa, bisa dialokasikan untuk makanan bergizi tinggi');
+      }
+    }
+
+    // Add positive feedback if budget friendly
+    if (estimatedCost <= allocatedBudget * 0.7 && estimatedCost > 0) {
+      budgetTips.push('Pilihan makanan ini ramah budget! Sisa budget bisa untuk snack sehat.');
+    }
+
+    return { budgetWarnings, budgetTips };
+  }
+
+  /**
+   * Get food prices from database
+   */
+  private async getFoodPrices(
+    foodIds: (string | number)[],
+  ): Promise<Map<string, { price_per_100g: number; price_per_serving?: number }>> {
+    const supabase = this.supabaseService.getClient();
+    const map = new Map<string, { price_per_100g: number; price_per_serving?: number }>();
+
+    const intIds = foodIds
+      .filter((id) => !this.isValidUUID(String(id)))
+      .map(Number)
+      .filter((n) => !Number.isNaN(n));
+
+    if (intIds.length > 0) {
+      const { data } = await supabase
+        .from('food_prices')
+        .select('food_id, price_per_100g, price_per_serving')
+        .in('food_id', intIds);
+
+      data?.forEach((p: any) => {
+        map.set(String(p.food_id), {
+          price_per_100g: Number(p.price_per_100g) || 0,
+          price_per_serving: p.price_per_serving ? Number(p.price_per_serving) : undefined,
+        });
+      });
+    }
+
+    return map;
+  }
+
+  /**
+   * Format currency to Indonesian Rupiah
+   */
+  private formatCurrency(amount: number): string {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }
+
+  /**
+   * Get Indonesian meal type name
+   */
+  private getMealTypeName(mealType: string): string {
+    const names: Record<string, string> = {
+      breakfast: 'sarapan',
+      lunch: 'makan siang',
+      dinner: 'makan malam',
+      snack: 'camilan',
+    };
+    return names[mealType.toLowerCase()] || mealType;
   }
 }

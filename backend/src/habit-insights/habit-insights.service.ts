@@ -3,10 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../supabase';
 import { DEFAULT_USER_TARGETS } from './constants';
 import {
+    BudgetInsightDto,
+    BudgetPatternDto,
     GetHabitInsightDto,
     HabitInsightResponseDto,
     HabitPatternDto,
-    PeriodType,
+    PeriodType
 } from './dto';
 import {
     CacheManager,
@@ -97,11 +99,14 @@ export class HabitInsightsService {
         // Perform analysis
         const analysis = await this.performAnalysis(aggregatedData, targets, period);
 
+        // Generate budget insight
+        const budgetInsight = await this.generateBudgetInsight(userId, dateRange, aggregatedData);
+
         // Save to cache
         await this.saveAnalysisToCache(userId, period, dateRange, dataHash, aggregatedData, analysis);
 
         // Build response
-        return this.buildResponse(userId, period, dateRange, aggregatedData, analysis);
+        return this.buildResponse(userId, period, dateRange, aggregatedData, analysis, budgetInsight);
     }
 
     // ============ DATE RANGE ============
@@ -409,7 +414,8 @@ export class HabitInsightsService {
         period: PeriodType,
         dateRange: { start: string; end: string },
         data: AggregatedDayData[],
-        analysis: AnalysisResult
+        analysis: AnalysisResult,
+        budgetInsight?: BudgetInsightDto
     ): HabitInsightResponseDto {
         const totalMeals = data.reduce((sum, d) => sum + (d.mealCount || 0), 0);
         const avgCalories = data.length > 0
@@ -428,6 +434,7 @@ export class HabitInsightsService {
             recommendations: analysis.recommendations,
             healthScore: analysis.healthScore,
             generatedAt: new Date().toISOString(),
+            budgetInsight,
         };
     }
 
@@ -610,6 +617,343 @@ export class HabitInsightsService {
             averageScore,
             improvement,
         };
+    }
+
+    // ============ BUDGET INSIGHT METHODS ============
+
+    /**
+     * Generate budget insight for a user
+     */
+    private async generateBudgetInsight(
+        userId: string,
+        dateRange: { start: string; end: string },
+        aggregatedData: AggregatedDayData[]
+    ): Promise<BudgetInsightDto | undefined> {
+        // Get user preferences to check daily budget
+        const supabase = this.supabaseService.getClient();
+        const { data: preferences } = await supabase
+            .from('user_preferences')
+            .select('daily_budget')
+            .eq('user_id', userId)
+            .single();
+
+        const dailyBudget = preferences?.daily_budget;
+        
+        // If no budget set, skip budget insight
+        if (!dailyBudget || dailyBudget <= 0) {
+            return undefined;
+        }
+
+        // Get food log items with prices for the period
+        const dailySpending = await this.calculateDailySpending(userId, dateRange);
+
+        if (dailySpending.length === 0) {
+            return undefined;
+        }
+
+        // Calculate metrics
+        const totalSpending = dailySpending.reduce((sum, d) => sum + d.spent, 0);
+        const averageDailySpending = Math.round(totalSpending / dailySpending.length);
+        const daysWithinBudget = dailySpending.filter(d => d.spent <= dailyBudget).length;
+        const daysOverBudget = dailySpending.filter(d => d.spent > dailyBudget).length;
+        const budgetUtilization = Math.round((averageDailySpending / dailyBudget) * 100);
+
+        // Determine budget tier
+        const budgetTier = this.getBudgetTierName(dailyBudget);
+
+        // Determine spending trend
+        const spendingTrend = this.calculateSpendingTrend(dailySpending, dailyBudget);
+
+        // Detect budget patterns
+        const budgetPatterns = this.detectBudgetPatterns(dailySpending, dailyBudget);
+
+        // Generate budget recommendations
+        const budgetRecommendations = this.generateBudgetRecommendations(
+            dailyBudget,
+            averageDailySpending,
+            budgetTier,
+            spendingTrend,
+            budgetPatterns
+        );
+
+        return {
+            dailyBudget,
+            budgetTier,
+            averageDailySpending,
+            totalSpending,
+            daysWithinBudget,
+            daysOverBudget,
+            spendingTrend,
+            budgetUtilization,
+            budgetPatterns,
+            budgetRecommendations,
+        };
+    }
+
+    /**
+     * Calculate daily spending from food logs
+     */
+    private async calculateDailySpending(
+        userId: string,
+        dateRange: { start: string; end: string }
+    ): Promise<{ date: string; spent: number }[]> {
+        const supabase = this.supabaseService.getClient();
+
+        // Get food logs with items
+        const { data: foodLogs } = await supabase
+            .from('food_logs')
+            .select(`
+                log_id,
+                created_at,
+                food_log_items!inner(
+                    food_id,
+                    gram_weight
+                )
+            `)
+            .eq('user_id', userId)
+            .gte('created_at', `${dateRange.start}T00:00:00.000Z`)
+            .lte('created_at', `${dateRange.end}T23:59:59.999Z`);
+
+        if (!foodLogs?.length) {
+            return [];
+        }
+
+        // Get all food IDs
+        const allFoodIds = foodLogs.flatMap((log: any) =>
+            Array.isArray(log.food_log_items)
+                ? log.food_log_items.map((item: any) => item.food_id)
+                : []
+        );
+
+        // Get prices
+        const { data: prices } = await supabase
+            .from('food_prices')
+            .select('food_id, price_per_100g')
+            .in('food_id', allFoodIds);
+
+        const priceMap = new Map(
+            (prices || []).map((p: any) => [p.food_id, Number(p.price_per_100g) || 0])
+        );
+
+        // Calculate daily spending
+        const dailyMap = new Map<string, number>();
+
+        for (const log of foodLogs) {
+            const date = (log as any).created_at.split('T')[0];
+            const items = Array.isArray((log as any).food_log_items)
+                ? (log as any).food_log_items
+                : [];
+
+            let logCost = 0;
+            for (const item of items) {
+                const pricePerGram = (priceMap.get(item.food_id) || 3000) / 100;
+                logCost += pricePerGram * (item.gram_weight || 100);
+            }
+
+            dailyMap.set(date, (dailyMap.get(date) || 0) + logCost);
+        }
+
+        return Array.from(dailyMap.entries())
+            .map(([date, spent]) => ({ date, spent: Math.round(spent) }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+    }
+
+    /**
+     * Get budget tier name based on daily budget
+     */
+    private getBudgetTierName(dailyBudget: number): string {
+        if (dailyBudget <= 25000) return 'very_low';
+        if (dailyBudget <= 40000) return 'low';
+        if (dailyBudget <= 60000) return 'medium';
+        if (dailyBudget <= 100000) return 'high';
+        return 'very_high';
+    }
+
+    /**
+     * Calculate spending trend
+     */
+    private calculateSpendingTrend(
+        dailySpending: { date: string; spent: number }[],
+        dailyBudget: number
+    ): 'increasing' | 'decreasing' | 'stable' {
+        if (dailySpending.length < 3) return 'stable';
+
+        const midPoint = Math.floor(dailySpending.length / 2);
+        const firstHalf = dailySpending.slice(0, midPoint);
+        const secondHalf = dailySpending.slice(midPoint);
+
+        const firstAvg = firstHalf.reduce((sum, d) => sum + d.spent, 0) / firstHalf.length;
+        const secondAvg = secondHalf.reduce((sum, d) => sum + d.spent, 0) / secondHalf.length;
+
+        const threshold = dailyBudget * 0.1;
+        if (secondAvg - firstAvg > threshold) return 'increasing';
+        if (firstAvg - secondAvg > threshold) return 'decreasing';
+        return 'stable';
+    }
+
+    /**
+     * Detect budget patterns
+     */
+    private detectBudgetPatterns(
+        dailySpending: { date: string; spent: number }[],
+        dailyBudget: number
+    ): BudgetPatternDto[] {
+        const patterns: BudgetPatternDto[] = [];
+
+        // Check for weekend overspending
+        const weekendDays = dailySpending.filter(d => {
+            const day = new Date(d.date).getDay();
+            return day === 0 || day === 6; // Sunday or Saturday
+        });
+
+        const weekdayDays = dailySpending.filter(d => {
+            const day = new Date(d.date).getDay();
+            return day !== 0 && day !== 6;
+        });
+
+        if (weekendDays.length > 0 && weekdayDays.length > 0) {
+            const weekendAvg = weekendDays.reduce((s, d) => s + d.spent, 0) / weekendDays.length;
+            const weekdayAvg = weekdayDays.reduce((s, d) => s + d.spent, 0) / weekdayDays.length;
+
+            if (weekendAvg > weekdayAvg * 1.3) {
+                patterns.push({
+                    type: 'negative',
+                    message: 'Pengeluaran di akhir pekan lebih tinggi dari hari kerja',
+                    daysAffected: weekendDays.map(d => d.date),
+                    impact: weekendAvg > dailyBudget * 1.2 ? 'High' : 'Medium',
+                });
+            }
+        }
+
+        // Check for consistent budget adherence
+        const daysWithinBudget = dailySpending.filter(d => d.spent <= dailyBudget);
+        if (daysWithinBudget.length >= dailySpending.length * 0.8) {
+            patterns.push({
+                type: 'positive',
+                message: 'Konsisten menjaga pengeluaran dalam budget',
+                daysAffected: daysWithinBudget.map(d => d.date),
+                impact: 'High',
+            });
+        }
+
+        // Check for frequent overspending
+        const daysOverBudget = dailySpending.filter(d => d.spent > dailyBudget);
+        if (daysOverBudget.length >= dailySpending.length * 0.4) {
+            patterns.push({
+                type: 'negative',
+                message: `${daysOverBudget.length} dari ${dailySpending.length} hari melebihi budget`,
+                daysAffected: daysOverBudget.map(d => d.date),
+                impact: 'High',
+            });
+        }
+
+        // Check for extremely high spending days
+        const extremeSpendingDays = dailySpending.filter(d => d.spent > dailyBudget * 1.5);
+        if (extremeSpendingDays.length > 0) {
+            patterns.push({
+                type: 'negative',
+                message: 'Beberapa hari dengan pengeluaran sangat tinggi (>150% budget)',
+                daysAffected: extremeSpendingDays.map(d => d.date),
+                impact: 'High',
+            });
+        }
+
+        // Check for very low spending (might indicate skipped meals)
+        const veryLowSpendingDays = dailySpending.filter(d => d.spent < dailyBudget * 0.3 && d.spent > 0);
+        if (veryLowSpendingDays.length >= 2) {
+            patterns.push({
+                type: 'neutral',
+                message: 'Beberapa hari dengan pengeluaran sangat rendah',
+                daysAffected: veryLowSpendingDays.map(d => d.date),
+                impact: 'Low',
+            });
+        }
+
+        return patterns;
+    }
+
+    /**
+     * Generate budget recommendations
+     */
+    private generateBudgetRecommendations(
+        dailyBudget: number,
+        averageSpending: number,
+        budgetTier: string,
+        spendingTrend: 'increasing' | 'decreasing' | 'stable',
+        patterns: BudgetPatternDto[]
+    ): string[] {
+        const recommendations: string[] = [];
+
+        // Based on budget tier
+        if (budgetTier === 'very_low' || budgetTier === 'low') {
+            recommendations.push('Prioritaskan protein nabati seperti tempe dan tahu yang lebih terjangkau');
+            recommendations.push('Pertimbangkan meal prep untuk menghemat biaya dan waktu');
+        }
+
+        // Based on spending trend
+        if (spendingTrend === 'increasing') {
+            recommendations.push('Pengeluaran cenderung naik, pertimbangkan untuk review pilihan makanan');
+        } else if (spendingTrend === 'decreasing') {
+            recommendations.push('Bagus! Pengeluaran cenderung turun, pertahankan pola ini');
+        }
+
+        // Based on patterns
+        const hasWeekendOverspending = patterns.some(p => 
+            p.message.includes('akhir pekan') && p.type === 'negative'
+        );
+        if (hasWeekendOverspending) {
+            recommendations.push('Siapkan makanan untuk akhir pekan agar tidak overspending');
+        }
+
+        // Based on average vs budget
+        if (averageSpending > dailyBudget) {
+            const overAmount = averageSpending - dailyBudget;
+            recommendations.push(`Kurangi pengeluaran harian sekitar ${this.formatCurrency(overAmount)} untuk mencapai target budget`);
+        } else if (averageSpending < dailyBudget * 0.7) {
+            recommendations.push('Budget masih tersisa cukup banyak, bisa dialokasikan untuk snack sehat atau makanan bergizi');
+        }
+
+        // General tips based on tier
+        const tierTips: Record<string, string[]> = {
+            'very_low': [
+                'Beli sayuran lokal musiman yang lebih murah',
+                'Hindari makanan kemasan dan olahan',
+            ],
+            'low': [
+                'Kombinasikan makan di rumah dan di luar',
+                'Cari promo dan diskon di aplikasi food delivery',
+            ],
+            'medium': [
+                'Variasikan sumber protein untuk nutrisi optimal',
+                'Pilih paket hemat jika makan di restoran',
+            ],
+            'high': [
+                'Investasi di makanan berkualitas untuk kesehatan jangka panjang',
+                'Pertimbangkan makanan organik untuk pilihan lebih sehat',
+            ],
+            'very_high': [
+                'Fokus pada kualitas dan variasi nutrisi',
+                'Coba restoran sehat dengan menu bernutrisi tinggi',
+            ],
+        };
+
+        if (tierTips[budgetTier] && recommendations.length < 5) {
+            recommendations.push(...tierTips[budgetTier].slice(0, 5 - recommendations.length));
+        }
+
+        return recommendations.slice(0, 5);
+    }
+
+    /**
+     * Format currency to IDR
+     */
+    private formatCurrency(amount: number): string {
+        return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(amount);
     }
 }
 

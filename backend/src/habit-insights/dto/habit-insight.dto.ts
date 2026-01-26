@@ -84,6 +84,76 @@ export class HabitPatternDto {
   impact?: string;
 }
 
+export class BudgetPatternDto {
+  @ApiProperty({
+    description: 'Pattern type',
+    example: 'negative',
+    enum: ['positive', 'negative', 'neutral'],
+  })
+  type: 'positive' | 'negative' | 'neutral';
+
+  @ApiProperty({
+    description: 'Pattern message',
+    example: 'Pengeluaran di akhir pekan lebih tinggi dari hari kerja',
+  })
+  message: string;
+
+  @ApiPropertyOptional({
+    description: 'Days affected by this pattern',
+    type: [String],
+  })
+  daysAffected?: string[];
+
+  @ApiPropertyOptional({
+    description: 'Impact level',
+    example: 'High',
+    enum: ['Low', 'Medium', 'High'],
+  })
+  impact?: string;
+}
+
+export class BudgetInsightDto {
+  @ApiProperty({ description: 'User daily budget (IDR)', example: 50000 })
+  dailyBudget: number;
+
+  @ApiProperty({ description: 'Budget tier', example: 'medium' })
+  budgetTier: string;
+
+  @ApiProperty({ description: 'Average daily spending (IDR)', example: 45000 })
+  averageDailySpending: number;
+
+  @ApiProperty({ description: 'Total spending in period (IDR)', example: 315000 })
+  totalSpending: number;
+
+  @ApiProperty({ description: 'Days within budget', example: 5 })
+  daysWithinBudget: number;
+
+  @ApiProperty({ description: 'Days over budget', example: 2 })
+  daysOverBudget: number;
+
+  @ApiProperty({ 
+    description: 'Spending trend',
+    example: 'stable',
+    enum: ['increasing', 'decreasing', 'stable']
+  })
+  spendingTrend: 'increasing' | 'decreasing' | 'stable';
+
+  @ApiProperty({ description: 'Budget utilization percentage', example: 90 })
+  budgetUtilization: number;
+
+  @ApiProperty({ 
+    description: 'Budget patterns detected',
+    type: [BudgetPatternDto]
+  })
+  budgetPatterns: BudgetPatternDto[];
+
+  @ApiProperty({ 
+    description: 'Budget recommendations',
+    type: [String]
+  })
+  budgetRecommendations: string[];
+}
+
 
 
 export class HabitInsightResponseDto {
@@ -126,4 +196,10 @@ export class HabitInsightResponseDto {
 
   @ApiProperty({ description: 'Generated timestamp' })
   generatedAt: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Budget insight analysis',
+    type: BudgetInsightDto
+  })
+  budgetInsight?: BudgetInsightDto;
 }
