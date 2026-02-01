@@ -2,6 +2,45 @@
 
 Modul untuk mengelola aturan budget makanan dan analisis pengeluaran berdasarkan `daily_budget` dari tabel `user_preferences`.
 
+## Data Flow Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         DATA FLOW DIAGRAM                           │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────┐
+│   user_preferences   │  ◄── PARENT TABLE (PRIMARY DATA SOURCE)
+│  ┌────────────────┐  │
+│  │ daily_budget   │──┼──────────────────────────┐
+│  └────────────────┘  │                          │
+└──────────────────────┘                          │
+                                                  ▼
+┌──────────────────────┐    ┌────────────────────────────────────────┐
+│     food_prices      │    │         NUTRITION ANALYSIS             │
+│  ┌────────────────┐  │    │  ┌──────────────────────────────────┐  │
+│  │ price_per_100g │──┼───►│  │ calculateBudgetAnalysis()        │  │
+│  └────────────────┘  │    │  │  - estimatedCost                 │  │
+└──────────────────────┘    │  │  - allocatedBudget               │  │
+                            │  │  - budgetUtilization             │  │
+┌──────────────────────┐    │  │  - budgetWarnings & tips         │  │
+│    budget_rules      │    │  └──────────────────────────────────┘  │
+│    (OPTIONAL)        │    └────────────────────────────────────────┘
+│  ┌────────────────┐  │                          │
+│  │ custom rules   │  │                          │
+│  └────────────────┘  │                          ▼
+└──────────────────────┘    ┌────────────────────────────────────────┐
+                            │           HABIT INSIGHTS               │
+                            │  ┌──────────────────────────────────┐  │
+                            │  │ generateBudgetInsight()          │  │
+                            │  │  - averageDailySpending          │  │
+                            │  │  - spendingTrend                 │  │
+                            │  │  - budgetPatterns                │  │
+                            │  │  - budgetRecommendations         │  │
+                            │  └──────────────────────────────────┘  │
+                            └────────────────────────────────────────┘
+```
+
 ## Overview
 
 Budget Rules Module menyediakan fitur:
@@ -9,6 +48,18 @@ Budget Rules Module menyediakan fitur:
 - **Meal Budget Allocation** - Alokasi persentase budget per waktu makan
 - **Budget Analysis** - Analisis pengeluaran vs budget yang dialokasikan
 - **Budget-aware Recommendations** - Rekomendasi makanan sesuai budget
+
+## Implementation Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `user_preferences.daily_budget` | ✅ Ready | Parent data source |
+| `food_prices` table | ✅ Ready | Migration: 008_budget_rules.sql |
+| `budget_rules` table | ✅ Ready (Optional) | For custom rules |
+| Budget analysis in nutrition-analysis | ✅ Ready | Auto-included in response |
+| Budget insight in habit-insights | ✅ Ready | Auto-included in response |
+| Budget types & DTOs | ✅ Ready | In dto/ and types/ folders |
+| Standalone budget-rules endpoints | ❌ Not needed | Rules are hardcoded in services |
 
 ## Database Schema
 
@@ -270,8 +321,65 @@ Harga default per food group (per 100g):
 Jalankan migration untuk membuat tabel yang diperlukan:
 
 ```bash
-# Run migration
-psql -f database/migrations/008_budget_rules.sql
+# Via Supabase CLI
+supabase db push
+
+# Atau manual via psql
+psql -h <host> -U postgres -d <database> -f database/migrations/008_budget_rules.sql
+
+# Atau via Supabase Dashboard
+# Copy isi file 008_budget_rules.sql ke SQL Editor dan jalankan
+```
+
+### Migration File: `008_budget_rules.sql`
+
+Migration ini akan:
+1. ✅ Membuat tabel `food_prices` dengan foreign key ke `food_items`
+2. ✅ Membuat tabel `budget_rules` (opsional)
+3. ✅ Setup RLS policies
+4. ✅ Seed data harga makanan dari `food_items`
+5. ✅ Seed default budget rules
+
+### Verifikasi Migration
+
+```sql
+-- Check food_prices seeded
+SELECT COUNT(*) FROM food_prices;
+
+-- Check budget_rules seeded  
+SELECT COUNT(*) FROM budget_rules;
+
+-- Sample food prices
+SELECT fi.name, fp.price_per_100g, fp.price_per_serving
+FROM food_prices fp
+JOIN food_items fi ON fp.food_id = fi.id
+LIMIT 10;
+```
+
+## Quick Start
+
+1. **Set daily budget untuk user:**
+```bash
+PATCH /user-preferences
+Authorization: Bearer <token>
+{
+  "daily_budget": 50000
+}
+```
+
+2. **Log makanan dan dapatkan budget analysis:**
+```bash
+POST /nutrition-analysis
+{
+  "foodLogId": "uuid-here"
+}
+# Response akan include budgetAnalysis jika daily_budget > 0
+```
+
+3. **Lihat insight budget mingguan:**
+```bash
+GET /habit-insights?period=weekly
+# Response akan include budgetInsight jika daily_budget > 0
 ```
 
 ## Related Modules
