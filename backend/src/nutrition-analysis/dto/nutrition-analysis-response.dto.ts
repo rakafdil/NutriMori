@@ -81,6 +81,42 @@ export class NutritionFactsDto {
   cholesterol?: string;
 }
 
+export class BudgetAnalysisDto {
+  @ApiProperty({ description: 'Estimated cost for this meal (IDR)', example: 15000 })
+  @IsNumber()
+  estimatedCost: number;
+
+  @ApiProperty({ description: 'Allocated budget for this meal type (IDR)', example: 17500 })
+  @IsNumber()
+  allocatedBudget: number;
+
+  @ApiProperty({ description: 'User daily budget (IDR)', example: 50000 })
+  @IsNumber()
+  dailyBudget: number;
+
+  @ApiProperty({ description: 'Whether meal is within allocated budget', example: true })
+  isWithinBudget: boolean;
+
+  @ApiProperty({ description: 'Budget utilization percentage', example: 85 })
+  @IsNumber()
+  budgetUtilization: number;
+
+  @ApiPropertyOptional({ description: 'Budget tier', example: 'medium' })
+  @IsString()
+  @IsOptional()
+  budgetTier?: string;
+
+  @ApiPropertyOptional({ description: 'Budget warnings', type: [String] })
+  @IsArray()
+  @IsOptional()
+  budgetWarnings?: string[];
+
+  @ApiPropertyOptional({ description: 'Budget saving tips', type: [String] })
+  @IsArray()
+  @IsOptional()
+  budgetTips?: string[];
+}
+
 export class MicronutrientsDto {
   @ApiPropertyOptional({ description: 'Vitamin C percentage', example: '10%' })
   @IsString()
@@ -164,6 +200,22 @@ export class NutritionAnalysisResponseDto {
   @IsString({ each: true })
   @IsOptional()
   warnings?: string[];
+
+  @ApiPropertyOptional({ 
+    description: 'Macro ratio percentages',
+    example: { protein: 25, carbs: 50, fat: 25 }
+  })
+  @IsObject()
+  @IsOptional()
+  macroRatio?: { protein: number; carbs: number; fat: number };
+
+  @ApiPropertyOptional({ 
+    description: 'Budget analysis for this meal',
+    type: BudgetAnalysisDto
+  })
+  @IsObject()
+  @IsOptional()
+  budgetAnalysis?: BudgetAnalysisDto;
 
   @ApiProperty({ description: 'Creation timestamp' })
   createdAt: Date;

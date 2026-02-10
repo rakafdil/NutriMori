@@ -124,3 +124,30 @@ CREATE TABLE public.users (
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
+CREATE TABLE public.food_prices (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  food_id bigint NOT NULL UNIQUE,
+  price_per_100g numeric NOT NULL DEFAULT 0,
+  price_per_serving numeric,
+  serving_size_g numeric DEFAULT 100,
+  price_source text DEFAULT 'estimated',
+  region text DEFAULT 'Indonesia',
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT food_prices_pkey PRIMARY KEY (id),
+  CONSTRAINT food_prices_food_id_fkey FOREIGN KEY (food_id) REFERENCES public.food_items(id)
+);
+CREATE TABLE public.budget_rules (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  rule_name text NOT NULL,
+  description text,
+  min_daily_budget numeric,
+  max_daily_budget numeric,
+  meal_period text,
+  budget_percentage numeric,
+  severity text DEFAULT 'info',
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT budget_rules_pkey PRIMARY KEY (id)
+);
